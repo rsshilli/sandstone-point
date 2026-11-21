@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="Sandstone Point — a small, friendly lake neighborhood on Lake Cumberland in Monticello, Kentucky." />
+    <link rel="icon" href="data:," />
+    <title>Sandstone Point — At Lake Cumberland · Monticello, Kentucky</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,500;0,700;0,800;1,500&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --lake-deep: #173f57;
+        --lake: #1d5a74;
+        --teal: #2e7d74;
+        --sun: #e9b44c;
+        --accent: #bc4636;
+        --sand: #e9e0cd;
+        --sand-dark: #d8c9a8;
+        --stone: #8a7a63;
+        --bg: #fdfcf9;
+        --surface: #ffffff;
+        --tint: #f2eee2;
+        --ink: #22303a;
+        --ink-soft: #4d5d68;
+        --line: #ddd5c0;
+        --hero-ink: #ffffff;
+        --shadow: 0 10px 30px rgba(23, 63, 87, 0.14);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --lake-deep: #0f2c3f;
+          --lake: #7fb3c8;
+          --teal: #6fc2b4;
+          --sun: #e9b44c;
+          --accent: #e08a7a;
+          --sand: #2c2a22;
+          --sand-dark: #3d382b;
+          --stone: #b3a586;
+          --bg: #131a1f;
+          --surface: #1c262e;
+          --tint: #1a232a;
+          --ink: #e9eef1;
+          --ink-soft: #b6c3cb;
+          --line: #33424d;
+          --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+        }
+      }
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        font-family: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+        line-height: 1.6;
+        font-size: 1.05rem;
+      }
+      h1, h2, h3 { font-family: "Bitter", Georgia, serif; line-height: 1.2; margin: 0; }
+      img { display: block; max-width: 100%; }
+      a { color: var(--lake); }
+      button { min-height: 2.75rem; }
+
+      /* ---------- Nav ---------- */
+      .nav {
+        position: sticky; top: 0; z-index: 40;
+        background: var(--lake-deep);
+        color: #fff;
+      }
+      .nav-inner {
+        max-width: 1100px; margin: 0 auto; padding: 0 1.25rem;
+        display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+        min-height: 3.5rem;
+      }
+      .brand { font-family: "Bitter", Georgia, serif; font-weight: 800; font-size: 1.15rem; color: #fff; text-decoration: none; letter-spacing: 0.01em; padding: 0.5rem 0; }
+      .brand span { color: var(--sun); }
+      .nav-links { display: flex; gap: 0.25rem; flex-wrap: wrap; }
+      .nav-links a {
+        color: #eaf3f7; text-decoration: none; font-weight: 600; font-size: 0.98rem;
+        padding: 0.6rem 0.8rem; min-height: 2.75rem; display: inline-flex; align-items: center;
+        border-radius: 0.4rem;
+      }
+      .nav-links a:hover, .nav-links a:focus-visible { background: rgba(255,255,255,0.14); }
+      @media (max-width: 560px) {
+        .nav-inner { flex-direction: column; align-items: flex-start; gap: 0; padding-bottom: 0.4rem; }
+        .brand { padding-bottom: 0; }
+        .nav-links { flex-wrap: wrap; gap: 0; }
+        .nav-links a { font-size: 0.92rem; padding: 0.55rem 0.5rem; white-space: nowrap; }
+      }
+
+      /* ---------- Hero ---------- */
+      .hero { position: relative; }
+      .hero img { width: 100%; height: min(78vh, 640px); object-fit: cover; }
+      .hero-overlay {
+        position: absolute; inset: 0;
+        background: linear-gradient(to top, rgba(10, 30, 44, 0.72) 0%, rgba(10, 30, 44, 0.25) 45%, rgba(10, 30, 44, 0) 70%);
+        display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
+        text-align: center; padding: 2.5rem 1.25rem 3rem;
+      }
+      .hero h1 {
+        color: var(--hero-ink); font-size: clamp(2.6rem, 8vw, 4.6rem); font-weight: 800;
+        text-shadow: 0 2px 18px rgba(0,0,0,0.45); letter-spacing: 0.01em;
+      }
+      .hero .subtitle {
+        color: #ffe9b0; font-size: clamp(1.05rem, 3.4vw, 1.45rem); font-weight: 600;
+        margin-top: 0.6rem; text-shadow: 0 1px 10px rgba(0,0,0,0.5);
+      }
+      .hero .rule { width: 72px; height: 4px; border-radius: 2px; background: var(--accent); margin-top: 1.1rem; }
+
+      /* ---------- Sections ---------- */
+      .wrap { max-width: 1100px; margin: 0 auto; padding: 0 1.25rem; }
+      section { padding: 3.5rem 0; }
+      .section-tint { background: var(--tint); }
+      h2 { font-size: clamp(1.7rem, 4.5vw, 2.3rem); font-weight: 700; color: var(--lake-deep); margin-bottom: 0.4rem; }
+      @media (prefers-color-scheme: dark) { h2 { color: var(--ink); } }
+      .section-lede { color: var(--ink-soft); max-width: 44rem; margin: 0 0 2rem; }
+      .kicker { color: var(--accent); font-weight: 700; font-size: 0.9rem; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 0.5rem; }
+
+      /* ---------- Welcome ---------- */
+      .welcome-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 2.5rem; align-items: center; }
+      @media (max-width: 760px) { .welcome-grid { grid-template-columns: 1fr; } }
+      .welcome-grid p { margin: 0 0 1rem; }
+      .sign-photo { border-radius: 0.75rem; box-shadow: var(--shadow); width: 100%; aspect-ratio: 3 / 3.4; object-fit: cover; }
+      .sign-caption { color: var(--ink-soft); font-size: 0.92rem; margin-top: 0.6rem; text-align: center; }
+      .welcome-facts { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.4rem; padding: 0; list-style: none; }
+      .welcome-facts li {
+        background: var(--sand); color: var(--ink); border: 1px solid var(--sand-dark);
+        padding: 0.35rem 0.85rem; border-radius: 999px; font-weight: 600; font-size: 0.95rem;
+      }
+      @media (prefers-color-scheme: dark) { .welcome-facts li { color: var(--ink); } }
+
+      /* ---------- Gallery ---------- */
+      .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+      @media (max-width: 860px) { .gallery { grid-template-columns: repeat(2, 1fr); } }
+      @media (max-width: 520px) { .gallery { grid-template-columns: 1fr; } }
+      figure { margin: 0; }
+      .gallery button {
+        padding: 0; border: 0; background: none; cursor: pointer; width: 100%;
+        border-radius: 0.65rem; overflow: hidden; display: block; position: relative;
+      }
+      .gallery button img { width: 100%; aspect-ratio: 4 / 3.4; object-fit: cover; transition: transform 0.35s ease; }
+      .gallery button:hover img, .gallery button:focus-visible img { transform: scale(1.04); }
+      .gallery button:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+      figcaption { color: var(--ink-soft); font-size: 0.95rem; padding: 0.5rem 0.15rem 0.9rem; }
+
+      /* ---------- Life at the Lake ---------- */
+      .life-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; }
+      @media (max-width: 700px) { .life-grid { grid-template-columns: 1fr; } }
+      .life-card { background: var(--surface); border: 1px solid var(--line); border-radius: 0.75rem; overflow: hidden; box-shadow: var(--shadow); }
+      .life-card img { width: 100%; aspect-ratio: 16 / 8; object-fit: cover; }
+      .life-card .body { padding: 1.1rem 1.25rem 1.3rem; }
+      .life-card h3 { font-size: 1.25rem; color: var(--lake-deep); margin-bottom: 0.35rem; }
+      @media (prefers-color-scheme: dark) { .life-card h3 { color: var(--ink); } }
+      .life-card p { margin: 0; color: var(--ink-soft); }
+      .private-note {
+        margin-top: 1.5rem; background: var(--tint); border: 1px solid var(--line);
+        border-radius: 0.75rem; padding: 1.1rem 1.25rem;
+      }
+      .private-note p { margin: 0; color: var(--ink-soft); }
+      .private-note strong { color: var(--ink); }
+
+      /* ---------- Build ---------- */
+      .build-intro { max-width: 46rem; margin: 0 0 2rem; color: var(--ink-soft); }
+      .build-intro strong { color: var(--ink); }
+      .build-grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 1.25rem; align-items: start; }
+      @media (max-width: 760px) { .build-grid { grid-template-columns: 1fr; } }
+      .build-card { background: var(--surface); border: 1px solid var(--line); border-radius: 0.75rem; padding: 1.4rem 1.5rem 1.5rem; box-shadow: var(--shadow); }
+      .build-card h3 { font-size: 1.3rem; color: var(--lake-deep); margin-bottom: 0.6rem; }
+      @media (prefers-color-scheme: dark) { .build-card h3 { color: var(--ink); } }
+      .build-card p { margin: 0 0 0.9rem; color: var(--ink-soft); }
+      .build-card p:last-child { margin-bottom: 0; }
+      .rules-list { margin: 0; padding: 0; list-style: none; }
+      .rules-list li { position: relative; padding: 0.45rem 0 0.45rem 1.6rem; color: var(--ink-soft); border-bottom: 1px solid var(--line); }
+      .rules-list li:last-child { border-bottom: 0; }
+      .rules-list li::before { content: "✓"; position: absolute; left: 0.15rem; top: 0.45rem; color: var(--teal); font-weight: 700; }
+      .rules-list strong { color: var(--ink); }
+      .build-stats { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0 0 1.6rem; padding: 0; list-style: none; }
+      .build-stats li { background: var(--sand); color: var(--ink); border: 1px solid var(--sand-dark); padding: 0.35rem 0.85rem; border-radius: 999px; font-weight: 600; font-size: 0.95rem; }
+      .build-smallprint { margin: 1.5rem 0 0; font-size: 0.92rem; color: var(--ink-soft); max-width: 46rem; }
+
+      /* ---------- HOA ---------- */
+      .hoa-box {
+        background: var(--lake-deep); color: #eef5f8; border-radius: 0.9rem;
+        padding: 2.25rem clamp(1.25rem, 4vw, 2.75rem);
+      }
+      .hoa-box h2 { color: #fff; }
+      .hoa-box .kicker { color: var(--sun); }
+      .hoa-box p { max-width: 46rem; margin: 0 0 1rem; color: #d9e7ee; }
+      .hoa-box p:last-child { margin-bottom: 0; }
+      .hoa-box strong { color: #fff; }
+
+      /* ---------- Footer ---------- */
+      footer { background: var(--lake-deep); color: #cfe0e9; margin-top: 0; }
+      .footer-inner { max-width: 1100px; margin: 0 auto; padding: 2rem 1.25rem 2.4rem; text-align: center; }
+      .footer-inner .name { font-family: "Bitter", Georgia, serif; font-weight: 700; color: #fff; font-size: 1.15rem; }
+      .footer-inner p { margin: 0.35rem 0 0; font-size: 0.97rem; }
+      .footer-sun { width: 54px; height: 4px; border-radius: 2px; background: var(--sun); margin: 0 auto 1rem; }
+
+      /* ---------- Lightbox ---------- */
+      dialog#lightbox {
+        border: 0; padding: 0; background: rgba(8, 20, 30, 0.96); color: #fff;
+        width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0;
+      }
+      dialog#lightbox::backdrop { background: rgba(8, 20, 30, 0.96); }
+      .lb-stage { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; gap: 0.75rem; }
+      .lb-stage img { max-width: min(100%, 1100px); max-height: 76dvh; object-fit: contain; border-radius: 0.5rem; }
+      .lb-caption { font-size: 1rem; color: #e6eef3; text-align: center; max-width: 40rem; }
+      .lb-controls { display: flex; gap: 0.6rem; align-items: center; }
+      .lb-controls button {
+        background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.35);
+        border-radius: 0.5rem; padding: 0.55rem 1.1rem; font: inherit; font-weight: 600; cursor: pointer; min-width: 2.75rem;
+      }
+      .lb-controls button:hover { background: rgba(255,255,255,0.24); }
+      .lb-count { color: #b9ccd7; font-size: 0.95rem; min-width: 3.5rem; text-align: center; }
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        .gallery button img { transition: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="nav" aria-label="Site">
+      <div class="nav-inner">
+        <a class="brand" href="#top">Sandstone <span>Point</span></a>
+        <div class="nav-links">
+          <a href="#welcome">Welcome</a>
+          <a href="#gallery">Gallery</a>
+          <a href="#life">Life at the Lake</a>
+          <a href="#build">Build</a>
+          <a href="#hoa">HOA</a>
+        </div>
+      </div>
+    </nav>
+
+    <header class="hero" id="top">
+      <img src="assets/sunset.jpg" alt="Sunset over Lake Cumberland, with wooded hills silhouetted on both shores" />
+      <div class="hero-overlay">
+        <h1>Sandstone Point</h1>
+        <p class="subtitle">At Lake Cumberland · Monticello, Kentucky</p>
+        <div class="rule" aria-hidden="true"></div>
+      </div>
+    </header>
+
+    <main>
+      <!-- Welcome -->
+      <section id="welcome">
+        <div class="wrap welcome-grid">
+          <div>
+            <p class="kicker">Welcome</p>
+            <h2>A small, friendly place on the lake</h2>
+            <p>
+              Sandstone Point is a small, friendly lake neighborhood on Lake Cumberland in
+              Wayne County, Kentucky, just outside Monticello. Life here moves at lake speed —
+              mornings on the water, afternoons in the swimming coves, and evenings that end
+              with the sun dropping behind the wooded hills.
+            </p>
+            <p>
+              The streets are quiet and shaded, the homes sit among the trees above the
+              shoreline, and the lake is always close — for boating, swimming, fishing, or
+              simply watching the light change from the deck. It's the kind of neighborhood
+              where neighbors wave, dogs ride along to the water, and nobody is in a hurry
+              to head home.
+            </p>
+            <ul class="welcome-facts">
+              <li>Lake Cumberland</li>
+              <li>Wayne County, Kentucky</li>
+              <li>Near Monticello</li>
+              <li>Gated entrance</li>
+            </ul>
+          </div>
+          <figure>
+            <img class="sign-photo" src="assets/sign-closeup.jpg" alt="The stone entrance sign reading “Sandstone Point at Lake Cumberland,” with yellow daylilies planted below it" />
+            <figcaption class="sign-caption">The entrance sign on the stone wall at the front gate.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <!-- Gallery -->
+      <section id="gallery" class="section-tint">
+        <div class="wrap">
+          <p class="kicker">Gallery</p>
+          <h2>Around the neighborhood</h2>
+          <p class="section-lede">Tap any photo to see it larger.</p>
+          <div class="gallery" id="galleryGrid"></div>
+        </div>
+      </section>
+
+      <!-- Life at the Lake -->
+      <section id="life">
+        <div class="wrap">
+          <p class="kicker">Life at the Lake</p>
+          <h2>How the days go here</h2>
+          <p class="section-lede">Four seasons would be underselling it — most of the year, the calendar is set by the water.</p>
+          <div class="life-grid">
+            <article class="life-card">
+              <img src="assets/cove-floats.jpg" alt="Neighbors floating on inflatables in the green swimming cove, with a pontoon boat tied up at the shore" />
+              <div class="body">
+                <h3>Days on the Water</h3>
+                <p>Boats head out early and the cove fills up by afternoon — pontoons tied up at the shore, floats in the green water, and paddleboards ready to go. The stairs down to the swimming cove are privately owned and maintained, and neighbors are welcome to use them to get down to the water.</p>
+              </div>
+            </article>
+            <article class="life-card">
+              <img src="assets/sunset.jpg" alt="The sun setting over Lake Cumberland between dark wooded hills" />
+              <div class="body">
+                <h3>Sunset Evenings</h3>
+                <p>The decks and the overlook face the evening light for a reason. When the sun drops between the hills and the lake turns to glass, everything stops for a few minutes — it's the best show in Wayne County, and it runs nightly.</p>
+              </div>
+            </article>
+            <article class="life-card">
+              <img src="assets/firepit-lakeview.jpg" alt="Adirondack chairs circled around a privately owned fire pit on a grassy overlook above Lake Cumberland" />
+              <div class="body">
+                <h3>Fire-Pit Nights</h3>
+                <p>On a grassy point above the lake, a circle of Adirondack chairs waits around a privately owned fire pit under the string lights. It's not an HOA amenity, but neighbors are welcome to gather there — cool evenings end with the lake below, the woods behind, and nowhere else to be.</p>
+              </div>
+            </article>
+            <article class="life-card">
+              <img src="assets/fireworks.jpg" alt="Red and gold fireworks bursting over the neighborhood road at night" />
+              <div class="body">
+                <h3>Fireworks at the Fair</h3>
+                <p>Sandstone Point doesn't put on its own show — it doesn't need to. The Wayne County Fair is just down the road and does a 45-minute fireworks show every year, so when the Fourth rolls around, the neighborhood just heads over and enjoys it together.</p>
+              </div>
+            </article>
+          </div>
+          <aside class="private-note" aria-label="A note on the fire pit and cove stairs">
+            <p><strong>A note on the fire pit and cove stairs:</strong> Both are privately owned and maintained. Neighbors are welcome — just be good to them. They aren't HOA common areas, and they aren't open to short-term rental guests.</p>
+          </aside>
+        </div>
+      </section>
+
+      <!-- Build at Sandstone Point -->
+      <section id="build" class="section-tint">
+        <div class="wrap">
+          <p class="kicker">Build Here</p>
+          <h2>Build at Sandstone Point</h2>
+          <p class="build-intro">
+            Sandstone Point was platted with <strong>roughly 200 lots</strong>, and so far only
+            <strong>about 6 or 7 houses</strong> have been built. That means the neighborhood is
+            still wide open — wooded lots, quiet streets, and plenty of room to choose your spot
+            above the lake. If you've been dreaming of building a lake home, we'd love to have you.
+          </p>
+          <ul class="build-stats">
+            <li>~200 lots</li>
+            <li>Only 6–7 homes built</li>
+            <li>Room to build</li>
+          </ul>
+          <div class="build-grid">
+            <div class="build-card">
+              <h3>A few firm building rules</h3>
+              <p>We're particular about how homes are built here — not to be difficult, but to protect the wooded, natural character that makes Sandstone Point what it is. The standards are straightforward:</p>
+              <ul class="rules-list">
+                <li><strong>Site-built single-family homes only</strong> — one home per lot.</li>
+                <li><strong>No mobile homes and no modular homes.</strong></li>
+                <li>Homes are <strong>at least 1,400 square feet</strong> of finished living space.</li>
+                <li>Exteriors in <strong>natural materials — wood, log, brick, or stone</strong> — in natural colors. No vinyl clapboard or aluminum siding.</li>
+                <li>Roofs pitched at <strong>at least 7:12</strong>, with quality shingles.</li>
+                <li>Building plans are <strong>approved by the Architectural Review Committee</strong> before construction begins.</li>
+                <li><strong>Keep at least half the mature trees</strong> on your lot.</li>
+              </ul>
+            </div>
+            <div class="build-card">
+              <h3>Otherwise, laid back</h3>
+              <p>
+                Beyond those building standards, owners are pretty much left to enjoy their
+                places. There's no long list of rules about how you live at the lake — come and
+                go, host family and friends, and use your home the way a lake home is meant to
+                be used.
+              </p>
+              <p>
+                Short-term rentals like <strong>Airbnb are allowed</strong> — the covenants place
+                no restriction on renting your home — and Lake Cumberland rentals do very well.
+                Several owners rent theirs out when they're not using them, and lake homes out
+                here have proven to be a great investment as well as a great getaway.
+              </p>
+              <p>
+                Build it for weekends, build it for retirement, or build it to share — you'll
+                find good neighbors and a warm welcome either way.
+              </p>
+            </div>
+          </div>
+          <p class="build-smallprint">This is a friendly summary. The recorded Declaration of Covenants governs — ask the HOA for the full document.</p>
+        </div>
+      </section>
+
+      <!-- HOA -->
+      <section id="hoa">
+        <div class="wrap">
+          <div class="hoa-box">
+            <p class="kicker">Property Owners Association</p>
+            <h2>Sandstone Point Property Owners Association</h2>
+            <p>
+              The Sandstone Point Property Owners Association looks after the neighborhood's common
+              areas and the entrance, keeping the gate, grounds, and shared spaces in good
+              shape for everyone who lives here. The association holds one annual meeting in
+              <strong>Somerset, Kentucky</strong>, usually in the fall.
+            </p>
+            <p>
+              Residents with questions about <strong>dues, documents, or meeting
+              information</strong> are invited to contact the HOA board — they're glad to help.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer-inner">
+        <div class="footer-sun" aria-hidden="true"></div>
+        <p class="name">Sandstone Point at Lake Cumberland · Monticello, Kentucky</p>
+        <p>A lake neighborhood in Wayne County, Kentucky.</p>
+      </div>
+    </footer>
+
+    <dialog id="lightbox" aria-label="Photo viewer">
+      <div class="lb-stage">
+        <img id="lbImg" alt="" />
+        <p class="lb-caption" id="lbCaption"></p>
+        <div class="lb-controls">
+          <button type="button" id="lbPrev" aria-label="Previous photo">‹ Prev</button>
+          <span class="lb-count" id="lbCount"></span>
+          <button type="button" id="lbNext" aria-label="Next photo">Next ›</button>
+          <button type="button" id="lbClose" aria-label="Close photo viewer">Close ✕</button>
+        </div>
+      </div>
+    </dialog>
+
+    <script>
+      var PHOTOS = [
+        { src: "assets/cove-floats.jpg",      alt: "Swimming cove with neighbors on floats and inflatables, a pontoon boat tied up at the sandy shore, and wooded hills around the green water", caption: "The swimming cove — floats out, pontoon tied up at the shore." },
+        { src: "assets/cove-pontoon.jpg",     alt: "Looking down the quiet cove from the rocky shoreline, with a pontoon boat anchored on the green water", caption: "Down the cove, with a pontoon anchored for the afternoon." },
+        { src: "assets/firepit-lakeview.jpg", alt: "Adirondack chairs around a privately owned fire pit on a grassy overlook, with a wide view of Lake Cumberland winding between wooded hills", caption: "A private fire pit overlooking the lake — neighbors welcome." },
+        { src: "assets/firepit-clearing.jpg", alt: "Adirondack chairs circled around a privately owned fire pit in a grassy clearing, with string lights overhead and woods all around", caption: "The private fire-pit circle in the clearing, strung with lights." },
+        { src: "assets/fireworks.jpg",       alt: "Red and gold fireworks bursting in the night sky over the neighborhood, with a second fountain of sparks rising from the road below", caption: "A just-for-fun show over the neighborhood, July 1." },
+        { src: "assets/house-deck.jpg",       alt: "A white neighborhood home with a wooden deck and covered porch, looking out over wooded hills to Lake Cumberland", caption: "A neighborhood home and its deck, high over the lake." },
+        { src: "assets/house-wide.jpg",       alt: "A wide view of a white neighborhood home with the lake stretching out behind it between green hills", caption: "Lake views come standard — the water is right behind the house." },
+        { src: "assets/entrance-sign-far.jpg", alt: "The gated entrance to Sandstone Point from the road, with the stone sign wall between the two gates under a blue sky", caption: "The front gate and entrance sign, from the road." }
+      ];
+
+      var grid = document.getElementById("galleryGrid");
+      PHOTOS.forEach(function (p, i) {
+        var fig = document.createElement("figure");
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.setAttribute("aria-label", "View photo larger: " + p.caption);
+        var img = document.createElement("img");
+        img.src = p.src; img.alt = p.alt;
+        btn.appendChild(img);
+        btn.addEventListener("click", function () { openLB(i); });
+        var cap = document.createElement("figcaption");
+        cap.textContent = p.caption;
+        fig.appendChild(btn); fig.appendChild(cap);
+        grid.appendChild(fig);
+      });
+
+      var dlg = document.getElementById("lightbox");
+      var lbImg = document.getElementById("lbImg");
+      var lbCaption = document.getElementById("lbCaption");
+      var lbCount = document.getElementById("lbCount");
+      var current = 0;
+
+      function show(i) {
+        current = (i + PHOTOS.length) % PHOTOS.length;
+        lbImg.src = PHOTOS[current].src;
+        lbImg.alt = PHOTOS[current].alt;
+        lbCaption.textContent = PHOTOS[current].caption;
+        lbCount.textContent = (current + 1) + " of " + PHOTOS.length;
+      }
+      function openLB(i) {
+        show(i);
+        if (typeof dlg.showModal === "function") {
+          dlg.showModal();
+        }
+      }
+      document.getElementById("lbPrev").addEventListener("click", function () { show(current - 1); });
+      document.getElementById("lbNext").addEventListener("click", function () { show(current + 1); });
+      document.getElementById("lbClose").addEventListener("click", function () { dlg.close(); });
+      dlg.addEventListener("click", function (e) {
+        if (e.target === dlg) {
+          dlg.close();
+        }
+      });
+      document.addEventListener("keydown", function (e) {
+        if (!dlg.open) {
+          return;
+        }
+        if (e.key === "ArrowLeft") {
+          show(current - 1);
+        }
+        if (e.key === "ArrowRight") {
+          show(current + 1);
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,32 @@
+/tmp
+/out-tsc
+
+/node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+/.pnp
+.pnp.js
+
+.vscode/*
+.agent-errors.jsonl
+
+# CDK
+cdk.out/
+.cdk.staging/
+cdk.context.json.bak
+
+# Photos of people stay local (not for the public site)
+photos/people/
+# A neighbor's house: not public until the owner agrees
+photos/scenery/log-cabin-front-spring.jpg
+
+# Private notes: the street address, names, account screenshots (this repo is public)
+PROGRESS.md
+.github/MUSE_HANDOFF.md
+.github/AWS_ACCOUNT_SETUP.md
+.github/private-terms.txt
+supplemental-materials/
+
+# Browser automation scratch
+.playwright-mcp/
