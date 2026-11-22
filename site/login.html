@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="robots" content="noindex" />
+    <meta name="description" content="Sign in to see your Sandstone Point lots, dues balance and gate code." />
+    <title>Owner login · Sandstone Point</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@700;800&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/portal.css" />
+    <script type="module" src="/js/login.js"></script>
+  </head>
+  <body>
+    <nav class="nav" aria-label="Site">
+      <div class="nav-inner">
+        <a class="brand" href="/">Sandstone <span>Point</span></a>
+        <div class="nav-links">
+          <a href="/#welcome">Welcome</a>
+          <a href="/#gallery">Gallery</a>
+          <a href="/#life">Life at the Lake</a>
+          <a href="/#build">Build</a>
+          <a href="/#nearby">Nearby</a>
+          <a href="/#hoa">HOA</a>
+          <a href="/membership.html">Membership</a>
+          <a href="/login.html" aria-current="page">Owner login</a>
+        </div>
+      </div>
+    </nav>
+
+    <main>
+      <div class="card login-card">
+        <p class="kicker">Lot owners</p>
+
+        <div id="message" class="message" role="alert" hidden></div>
+
+        <section id="signin" aria-labelledby="signin-title">
+          <h1 id="signin-title">Sign in</h1>
+          <p class="muted">See your lots, what you owe, and your gate code.</p>
+          <form id="signin-form">
+            <label>Email <input name="email" type="email" autocomplete="username" required /></label>
+            <label>Password <input name="password" type="password" autocomplete="current-password" required /></label>
+            <button type="submit">Sign in</button>
+          </form>
+          <div class="links">
+            <button type="button" class="link" data-show="signup">Create an account</button>
+            <button type="button" class="link" data-show="forgot">Forgot password?</button>
+          </div>
+        </section>
+
+        <section id="signup" aria-labelledby="signup-title" hidden>
+          <h1 id="signup-title">Create an account</h1>
+          <p class="muted">Use the email the board has for you and you&rsquo;re in straight away. Otherwise the board checks the county records first.</p>
+          <form id="signup-form">
+            <label>Email <input name="email" type="email" autocomplete="username" required /></label>
+            <label>Password <small>At least 10 characters, with upper and lower case letters and a number.</small>
+              <input name="password" type="password" autocomplete="new-password" minlength="10" required />
+            </label>
+            <button type="submit">Create account</button>
+          </form>
+          <div class="links">
+            <button type="button" class="link" data-show="signin">I already have an account</button>
+          </div>
+        </section>
+
+        <section id="confirm" aria-labelledby="confirm-title" hidden>
+          <h1 id="confirm-title">Check your email</h1>
+          <p class="muted">We sent a 6-digit code to <strong id="confirm-email"></strong>.</p>
+          <form id="confirm-form">
+            <label>Code <input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,8}" required /></label>
+            <button type="submit">Confirm</button>
+          </form>
+          <div class="links">
+            <button type="button" class="link" id="resend">Send a new code</button>
+            <button type="button" class="link" data-show="signin">Back to sign in</button>
+          </div>
+        </section>
+
+        <section id="forgot" aria-labelledby="forgot-title" hidden>
+          <h1 id="forgot-title">Reset your password</h1>
+          <p class="muted">We&rsquo;ll email you a code.</p>
+          <form id="forgot-form">
+            <label>Email <input name="email" type="email" autocomplete="username" required /></label>
+            <button type="submit">Email me a code</button>
+          </form>
+          <div class="links">
+            <button type="button" class="link" data-show="signin">Back to sign in</button>
+          </div>
+        </section>
+
+        <section id="reset" aria-labelledby="reset-title" hidden>
+          <h1 id="reset-title">Choose a new password</h1>
+          <p class="muted">Enter the code we emailed to <strong id="reset-email"></strong>.</p>
+          <form id="reset-form">
+            <label>Code <input name="code" inputmode="numeric" autocomplete="one-time-code" required /></label>
+            <label>New password <small>At least 10 characters, with upper and lower case letters and a number.</small>
+              <input name="password" type="password" autocomplete="new-password" minlength="10" required />
+            </label>
+            <button type="submit">Save password</button>
+          </form>
+          <div class="links">
+            <button type="button" class="link" data-show="signin">Back to sign in</button>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      <div class="footer-inner">
+        <div class="footer-sun" aria-hidden="true"></div>
+        <p class="name">Sandstone Point at Lake Cumberland · Monticello, Kentucky</p>
+      </div>
+    </footer>
+  </body>
+</html>

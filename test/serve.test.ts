@@ -69,4 +69,41 @@ describe('local preview server', () => {
     expect(status).toBe(404);
     expect(body).not.toContain('"devDependencies"');
   });
+
+  it('should not answer the dev code lookup unless npm run dev turned it on', async () => {
+    const { status } = await get('/dev/code?email=a@x.com');
+    expect(status).toBe(404);
+  });
+});
+
+describe('local preview server with the dev code lookup', () => {
+  let devServer: Server;
+  let devBase: string;
+  const asked: string[] = [];
+
+  beforeAll(async () => {
+    devServer = startServer(0, {
+      devCode: (email) => {
+        asked.push(email);
+        return email === 'owner@x.com' ? { code: '123456', sentAt: 42 } : undefined;
+      },
+    });
+    await new Promise((ready) => devServer.on('listening', ready));
+    devBase = `http://127.0.0.1:${(devServer.address() as AddressInfo).port}`;
+  });
+
+  afterAll(() => {
+    devServer.close();
+  });
+
+  it('should return the last code for an email, matched case-insensitively', async () => {
+    const response = await fetch(`${devBase}/dev/code?email=${encodeURIComponent(' Owner@X.com ')}`);
+    expect(await response.json()).toEqual({ code: '123456', sentAt: 42 });
+    expect(asked).toContain('owner@x.com');
+  });
+
+  it('should return an empty object when no code was sent to that email', async () => {
+    const response = await fetch(`${devBase}/dev/code?email=nobody@x.com`);
+    expect(await response.json()).toEqual({});
+  });
 });

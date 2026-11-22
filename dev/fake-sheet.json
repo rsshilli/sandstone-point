@@ -1,0 +1,29 @@
+{
+  "_comment": "FAKE data for local development and tests. Same rows and columns as the real Owners Records sheet (row 2 down). No real owner is in here.",
+  "owners": [
+    ["O-001", "ADMIN ALEX", "Alex", "Admin", "admin@example.com", "555-0101", "1 Example Rd, Nowhere, KY 00000", "Admin", "1111", "Active", "Fake board member"],
+    ["O-002", "OWNER PAT & SAM", "Pat", "Owner", "owner@example.com", "555-0102", "2 Example Rd, Nowhere, KY 00000", "Owner", "2222", "Active", "Fake owner of two lots"],
+    ["O-003", "OWNER SAM", "Sam", "Owner", "", "", "2 Example Rd, Nowhere, KY 00000", "Owner", "3333", "Active", "Fake co-owner with no login yet"],
+    ["O-004", "SAMPLE HOLDINGS LLC", "", "", "", "", "4 Example Rd, Nowhere, KY 00000", "Owner", "4444", "Active", "Fake company owner with no login yet"],
+    ["O-005", "FORMER FRANKIE", "Frankie", "Former", "former@example.com", "", "5 Example Rd, Nowhere, KY 00000", "Owner", "5555", "Inactive", "Fake seller; Inactive so the login shows nothing"]
+  ],
+  "lots": [
+    [1, "O-001", "", "", "House built", 200, "", "", "003-50-01-001.00", "Example Trail"],
+    [2, "O-002, O-003", "", "", "House built", 200, "", "", "003-50-01-002.00", "Example Trail"],
+    [3, "O-002", "", "", "Vacant lot", 200, "", "", "003-50-01-003.00", "Example Trail"],
+    [4, "O-004", "", "", "Under construction", 200, "", "", "003-50-01-004.00", "Example Cove"],
+    [5, "O-005", "", "", "Vacant lot", 200, "", "", "003-50-01-005.00", "Example Cove"],
+    [6, "", "", "", "", 200, "", "No owner found yet", "", ""]
+  ],
+  "payments": [
+    ["2026-01-01", 1, "2026 annual dues", 200, "", "", "Treasurer"],
+    ["2026-01-20", 1, "Dues payment", "", 200, "Check", "Treasurer"],
+    ["2026-01-01", 2, "2026 annual dues", 200, "", "", "Treasurer"],
+    ["2026-02-03", 2, "Dues payment", "", 120, "Online", "Treasurer"],
+    ["2026-01-01", 3, "2026 annual dues", 200, "", "", "Treasurer"],
+    ["2026-01-01", 4, "2026 annual dues", 200, "", "", "Treasurer"]
+  ],
+  "requests": [
+    ["2026-11-20", "Morgan Sample", "pending@example.com", "555-0104", "Lot 4", "Pending", "", "", ""]
+  ]
+}

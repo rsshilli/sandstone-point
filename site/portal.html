@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="robots" content="noindex" />
+    <title>My account · Sandstone Point</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@700;800&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/portal.css" />
+    <script type="module" src="/js/portal.js"></script>
+  </head>
+  <body>
+    <nav class="nav" aria-label="Site">
+      <div class="nav-inner">
+        <a class="brand" href="/">Sandstone <span>Point</span></a>
+        <div class="nav-links">
+          <a href="/#welcome">Welcome</a>
+          <a href="/#gallery">Gallery</a>
+          <a href="/#life">Life at the Lake</a>
+          <a href="/#build">Build</a>
+          <a href="/#nearby">Nearby</a>
+          <a href="/#hoa">HOA</a>
+          <a href="/membership.html">Membership</a>
+          <a href="/login.html" aria-current="page">Owner login</a>
+        </div>
+      </div>
+    </nav>
+
+    <main>
+      <div class="top">
+        <div>
+          <p class="kicker">My account</p>
+          <h1 id="greeting">Loading&hellip;</h1>
+          <p class="muted" id="signed-in-as"></p>
+        </div>
+        <button type="button" class="secondary" id="sign-out">Sign out</button>
+      </div>
+
+      <div id="message" class="message" role="alert" hidden></div>
+
+      <!-- Shown to owners on the Owners tab -->
+      <div id="member" hidden>
+        <div class="stats">
+          <div class="stat"><div class="label">Your gate code</div><div class="value" id="gate-code"></div></div>
+          <div class="stat"><div class="label">You owe</div><div class="value" id="total-owed"></div></div>
+          <div class="stat"><div class="label">Your lots</div><div class="value" id="lot-count"></div></div>
+        </div>
+
+        <h2>Your lots</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Lot</th><th>Status</th><th>Owners</th><th>Name on tax record</th><th class="num">Yearly dues</th><th class="num">Balance</th></tr></thead>
+            <tbody id="my-lots"></tbody>
+          </table>
+        </div>
+
+        <h2>Charges and payments</h2>
+        <p class="muted" id="ledger-empty" hidden>Nothing recorded yet.</p>
+        <div class="table-wrap" id="ledger-wrap">
+          <table>
+            <thead><tr><th>Date</th><th>Lot</th><th>What</th><th class="num">Charge</th><th class="num">Paid</th><th>How</th></tr></thead>
+            <tbody id="ledger"></tbody>
+          </table>
+        </div>
+        <p class="muted" style="margin-top:1rem">Something look wrong? Tell a board member and they&rsquo;ll fix the records.</p>
+      </div>
+
+      <!-- Admins only -->
+      <div id="admin" hidden>
+        <h2>Sign-up requests</h2>
+        <p class="muted">People whose email isn&rsquo;t on the owner list yet. Approve links their email to an owner record, which lets them see that owner&rsquo;s lots.</p>
+        <p class="muted" id="requests-empty" hidden>No requests waiting.</p>
+        <div class="requests" id="requests"></div>
+
+        <h2>All lots</h2>
+        <label class="filter">Find a lot or owner <input id="lot-filter" type="search" placeholder="e.g. 52 or Smith" /></label>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Lot</th><th>Owners</th><th>Name on tax record</th><th>Status</th><th class="num">Balance</th><th>Gate codes</th><th>Login</th></tr></thead>
+            <tbody id="all-lots"></tbody>
+          </table>
+        </div>
+        <p class="muted" style="margin-top:0.6rem" id="all-total"></p>
+      </div>
+
+      <!-- Signed in, but the email is not on the Owners tab -->
+      <div id="visitor" hidden>
+        <div class="card" style="max-width:34rem;margin-top:1.5rem">
+          <div id="request-status"></div>
+          <form id="request-form" hidden>
+            <p>We don&rsquo;t have this email on the owner list yet. Tell us who you are and a board member will check the county records.</p>
+            <label>Your name, as on the deed if you can <input name="name" autocomplete="name" maxlength="120" required /></label>
+            <label>Lot number(s) <small>For example: 50, 51</small><input name="lots" maxlength="120" required /></label>
+            <label>Phone <small>Optional, in case the board has a question</small><input name="phone" type="tel" autocomplete="tel" maxlength="30" /></label>
+            <button type="submit">Send to the board</button>
+          </form>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <div class="footer-inner">
+        <div class="footer-sun" aria-hidden="true"></div>
+        <p class="name">Sandstone Point at Lake Cumberland · Monticello, Kentucky</p>
+      </div>
+    </footer>
+  </body>
+</html>

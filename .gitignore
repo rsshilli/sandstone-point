@@ -29,3 +29,8 @@ supplemental-materials/
 
 # Browser automation scratch
 .playwright-mcp/
+.github/GOOGLE_SERVICE_ACCOUNT_SETUP.md
+
+# Local cognito-local data and the local copy of the fake sheet
+.cognito/
+.local/

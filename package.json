@@ -4,18 +4,24 @@
   "description": "Sandstone Point HOA website and resident portal (AWS CDK)",
   "scripts": {
     "start": "tsx scripts/serve.ts",
+    "dev": "tsx scripts/dev.ts",
+    "dev:fake": "tsx scripts/dev.ts --fake",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "synth": "cdk synth",
     "deploy": "cdk deploy --profile sandstone --require-approval never"
   },
   "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.1175.0",
     "aws-cdk-lib": "^2.278.0",
-    "constructs": "^10.8.1"
+    "constructs": "^10.8.1",
+    "jose": "^6.2.18"
   },
   "devDependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.1175.0",
     "@types/node": "^26.6.6",
     "aws-cdk": "^2.1149.0",
+    "esbuild": "^0.28.2",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "vitest": "^5.1.1"

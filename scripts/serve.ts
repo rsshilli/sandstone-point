@@ -1,4 +1,5 @@
-import { createServer, type Server } from 'node:http';
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import type { ApiRequest, ApiResponse } from '../lib/portal/api';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 
@@ -9,6 +10,7 @@ const CONTENT_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
+  '.json': 'application/json',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.png': 'image/png',
@@ -29,15 +31,59 @@ function main(): void {
   });
 }
 
+/** Extras for the full local stack (`npm run dev`); the plain preview (`npm start`) has neither. */
+export interface ServerOptions {
+  /** Answers /api/* (the portal API, as the Lambda does behind CloudFront). */
+  api?: (request: ApiRequest) => Promise<ApiResponse>;
+  /** Served as /config.json: where the login page finds Cognito. */
+  config?: Record<string, string>;
+  /**
+   * Local `npm run dev` only: answers /dev/code?email=… with the last emailed code for that
+   * address, so the login page can print it in the browser console. Never set when deployed.
+   */
+  devCode?: (email: string) => DevCode | undefined;
+}
+
+/** A sign-up or reset code that cognito-local would have emailed. */
+export interface DevCode {
+  code: string;
+  /** When it was sent, in milliseconds since 1970. */
+  sentAt: number;
+}
+
 /**
  * Serves the site/ folder the way CloudFront will: "/" shows index.html, and a missing page
- * shows 404.html with a 404 status.
+ * shows 404.html with a 404 status. With options it also serves /config.json and /api/*.
  * @param port the port to listen on; 0 picks any free port (used by the tests)
+ * @param options the API handler and login config, for the full local stack
  * @returns the running HTTP server
  */
-export function startServer(port: number): Server {
+export function startServer(port: number, options: ServerOptions = {}): Server {
   const server = createServer((request, response) => {
-    const urlPath = decodeURIComponent((request.url ?? '/').split('?')[0]);
+    let urlPath: string;
+    try {
+      urlPath = decodeURIComponent((request.url ?? '/').split('?')[0]);
+    } catch {
+      sendJson(response, 400, { error: 'Bad address.' });
+      return;
+    }
+    if (options.config && urlPath === '/config.json') {
+      sendJson(response, 200, options.config);
+      return;
+    }
+    if (options.devCode && urlPath === '/dev/code') {
+      const email = new URL(request.url ?? '/', 'http://local').searchParams.get('email') ?? '';
+      sendJson(response, 200, options.devCode(email.trim().toLowerCase()) ?? {});
+      return;
+    }
+    if (options.api && urlPath.startsWith('/api/')) {
+      const api = options.api;
+      readBody(request)
+        .then((body) => api({ method: request.method ?? 'GET', path: urlPath, authorization: request.headers.authorization, body }))
+        .then((result) => sendJson(response, result.status, result.body))
+        .catch((error: unknown) => sendJson(response, 500, { error: String(error) }));
+      return;
+    }
     resolveFile(urlPath)
       .then(async (file) => {
         if (file) {
@@ -55,6 +101,37 @@ export function startServer(port: number): Server {
   });
   server.listen(port, '127.0.0.1');
   return server;
+}
+
+/**
+ * Sends a JSON response that is never cached.
+ * @param response the response
+ * @param status HTTP status
+ * @param body the body to serialise
+ */
+function sendJson(response: ServerResponse, status: number, body: unknown): void {
+  response.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+  response.end(JSON.stringify(body));
+}
+
+/**
+ * Reads a request body as text (capped at 64 KB, like a small form needs).
+ * @param request the request
+ * @returns the body, or undefined when empty
+ */
+function readBody(request: IncomingMessage): Promise<string | undefined> {
+  return new Promise((done, fail) => {
+    let body = '';
+    request.on('data', (chunk: Buffer) => {
+      body += chunk.toString('utf8');
+      if (body.length > 65_536) {
+        request.destroy();
+        fail(new Error('Request body too large'));
+      }
+    });
+    request.on('end', () => done(body || undefined));
+    request.on('error', fail);
+  });
 }
 
 /**
