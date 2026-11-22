@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
     <meta name="description" content="Sandstone Point — a small, friendly lake neighborhood on Lake Cumberland in Monticello, Kentucky." />
-    <link rel="icon" href="data:," />
     <title>Sandstone Point — At Lake Cumberland · Monticello, Kentucky</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,500;0,700;0,800;1,500&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
@@ -180,6 +182,15 @@
       .build-stats li { background: var(--sand); color: var(--ink); border: 1px solid var(--sand-dark); padding: 0.35rem 0.85rem; border-radius: 999px; font-weight: 600; font-size: 0.95rem; }
       .build-smallprint { margin: 1.5rem 0 0; font-size: 0.92rem; color: var(--ink-soft); max-width: 46rem; }
 
+      /* Things nearby */
+      .nearby-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; margin: 0; padding: 0; list-style: none; }
+      .nearby-card { background: var(--surface); border: 1px solid var(--line); border-radius: 0.75rem; padding: 1.1rem 1.25rem 1.2rem; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 0.4rem; }
+      .nearby-card h3 { font-size: 1.2rem; color: var(--lake-deep); margin: 0; }
+      @media (prefers-color-scheme: dark) { .nearby-card h3 { color: var(--ink); } }
+      .nearby-card p { margin: 0; color: var(--ink-soft); }
+      .nearby-card .drive { align-self: flex-start; background: var(--sand); color: var(--ink); border: 1px solid var(--sand-dark); padding: 0.2rem 0.7rem; border-radius: 999px; font-weight: 700; font-size: 0.9rem; }
+      .nearby-smallprint { margin: 1.25rem 0 0; font-size: 0.92rem; color: var(--ink-soft); }
+
       /* ---------- HOA ---------- */
       .hoa-box {
         background: var(--lake-deep); color: #eef5f8; border-radius: 0.9rem;
@@ -190,6 +201,7 @@
       .hoa-box p { max-width: 46rem; margin: 0 0 1rem; color: #d9e7ee; }
       .hoa-box p:last-child { margin-bottom: 0; }
       .hoa-box strong { color: #fff; }
+      .hoa-box .hoa-link { color: var(--sun); font-weight: 700; }
 
       /* ---------- Footer ---------- */
       footer { background: var(--lake-deep); color: #cfe0e9; margin-top: 0; }
@@ -229,7 +241,9 @@
           <a href="#gallery">Gallery</a>
           <a href="#life">Life at the Lake</a>
           <a href="#build">Build</a>
+          <a href="#nearby">Nearby</a>
           <a href="#hoa">HOA</a>
+          <a href="/membership.html">Membership</a>
         </div>
       </div>
     </nav>
@@ -319,7 +333,7 @@
               <img src="assets/fireworks.jpg" alt="Red and gold fireworks bursting over the neighborhood road at night" />
               <div class="body">
                 <h3>Fireworks at the Fair</h3>
-                <p>Sandstone Point doesn't put on its own show — it doesn't need to. The Wayne County Fair is just down the road and does a 45-minute fireworks show every year, so when the Fourth rolls around, the neighborhood just heads over and enjoys it together.</p>
+                <p>Sandstone Point doesn't put on its own show — it doesn't need to. The <a href="https://waynecountykyfair.org/" target="_blank" rel="noopener">Wayne County Fair</a> is just down the road and does a 45-minute fireworks show every year, so when the Fourth rolls around, the neighborhood just heads over and enjoys it together.</p>
               </div>
             </article>
           </div>
@@ -335,14 +349,15 @@
           <p class="kicker">Build Here</p>
           <h2>Build at Sandstone Point</h2>
           <p class="build-intro">
-            Sandstone Point was platted with <strong>roughly 200 lots</strong>, and so far only
-            <strong>about 6 or 7 houses</strong> have been built. That means the neighborhood is
+            Sandstone Point was platted with <strong>roughly 150 lots</strong>, and so far only
+            <strong>7 houses</strong> have been finished, with <strong>3 more under construction</strong>.
+            That means the neighborhood is
             still wide open — wooded lots, quiet streets, and plenty of room to choose your spot
             above the lake. If you've been dreaming of building a lake home, we'd love to have you.
           </p>
           <ul class="build-stats">
-            <li>~200 lots</li>
-            <li>Only 6–7 homes built</li>
+            <li>~150 lots</li>
+            <li>7 homes built, 3 underway</li>
             <li>Room to build</li>
           </ul>
           <div class="build-grid">
@@ -351,7 +366,7 @@
               <p>We're particular about how homes are built here — not to be difficult, but to protect the wooded, natural character that makes Sandstone Point what it is. The standards are straightforward:</p>
               <ul class="rules-list">
                 <li><strong>Site-built single-family homes only</strong> — one home per lot.</li>
-                <li><strong>No mobile homes and no modular homes.</strong></li>
+                <li><strong>No mobile homes, no modular homes and no campgrounds.</strong></li>
                 <li>Homes are <strong>at least 1,400 square feet</strong> of finished living space.</li>
                 <li>Exteriors in <strong>natural materials — wood, log, brick, or stone</strong> — in natural colors. No vinyl clapboard or aluminum siding.</li>
                 <li>Roofs pitched at <strong>at least 7:12</strong>, with quality shingles.</li>
@@ -383,6 +398,43 @@
         </div>
       </section>
 
+      <!-- Things nearby -->
+      <section id="nearby">
+        <div class="wrap">
+          <p class="kicker">Around Wayne County</p>
+          <h2>Things nearby</h2>
+          <p class="section-lede">Everything you need is a short drive from the main gate.</p>
+          <ul class="nearby-list">
+            <li class="nearby-card">
+              <span class="drive">3.5 mi · about 6 min</span>
+              <h3>Three Way Stop</h3>
+              <p>Delicious home-made meals to go, right where KY 674 meets Highway 92. Look for the <a href="https://www.facebook.com/3waystopnshop/" target="_blank" rel="noopener">3 Way Stop N Shop</a>.</p>
+            </li>
+            <li class="nearby-card">
+              <span class="drive">5.5 mi · 8–10 min</span>
+              <h3>Beaver Creek Marina</h3>
+              <p>A home for your boat, with slips, fuel and a launch ramp. Now called <a href="https://safeharbor.com/locations/safe-harbor-beaver-creek" target="_blank" rel="noopener">Safe Harbor Beaver Creek</a>.</p>
+            </li>
+            <li class="nearby-card">
+              <span class="drive">10.5 mi · about 17 min</span>
+              <h3>City Pool Hall</h3>
+              <p>The best burgers around, served on Main Street in Monticello since 1946. <a href="https://kentuckytourism.com/explore/city-pool-hall-2423" target="_blank" rel="noopener">More about it</a>.</p>
+            </li>
+            <li class="nearby-card">
+              <span class="drive">10.5 mi · about 17 min</span>
+              <h3>Walmart</h3>
+              <p>Groceries, boating supplies and everything else for the lake, in Monticello.</p>
+            </li>
+            <li class="nearby-card">
+              <span class="drive">12 mi · about 19 min</span>
+              <h3>Black Stallion Steak House</h3>
+              <p>A sit-down steak dinner on North Main Street in Monticello. <a href="https://sites.google.com/view/blackstallionsteakhouse" target="_blank" rel="noopener">Menu and hours</a>.</p>
+            </li>
+          </ul>
+          <p class="nearby-smallprint">Driving distances and times are approximate, from the main gate.</p>
+        </div>
+      </section>
+
       <!-- HOA -->
       <section id="hoa">
         <div class="wrap">
@@ -398,6 +450,11 @@
             <p>
               Residents with questions about <strong>dues, documents, or meeting
               information</strong> are invited to contact the HOA board — they're glad to help.
+            </p>
+            <p>
+              <strong>Membership is required.</strong> Every owner of Lots 1 through 139 is automatically a
+              member and owes dues, as the Wayne Circuit Court confirmed in 2024.
+              <a class="hoa-link" href="/membership.html">What buyers, agents and title companies need to know →</a>
             </p>
           </div>
         </div>
@@ -430,11 +487,25 @@
         { src: "assets/cove-floats.jpg",      alt: "Swimming cove with neighbors on floats and inflatables, a pontoon boat tied up at the sandy shore, and wooded hills around the green water", caption: "The swimming cove — floats out, pontoon tied up at the shore." },
         { src: "assets/cove-pontoon.jpg",     alt: "Looking down the quiet cove from the rocky shoreline, with a pontoon boat anchored on the green water", caption: "Down the cove, with a pontoon anchored for the afternoon." },
         { src: "assets/firepit-lakeview.jpg", alt: "Adirondack chairs around a privately owned fire pit on a grassy overlook, with a wide view of Lake Cumberland winding between wooded hills", caption: "A private fire pit overlooking the lake — neighbors welcome." },
-        { src: "assets/firepit-clearing.jpg", alt: "Adirondack chairs circled around a privately owned fire pit in a grassy clearing, with string lights overhead and woods all around", caption: "The private fire-pit circle in the clearing, strung with lights." },
         { src: "assets/fireworks.jpg",       alt: "Red and gold fireworks bursting in the night sky over the neighborhood, with a second fountain of sparks rising from the road below", caption: "A just-for-fun show over the neighborhood, July 1." },
         { src: "assets/house-deck.jpg",       alt: "A white neighborhood home with a wooden deck and covered porch, looking out over wooded hills to Lake Cumberland", caption: "A neighborhood home and its deck, high over the lake." },
         { src: "assets/house-wide.jpg",       alt: "A wide view of a white neighborhood home with the lake stretching out behind it between green hills", caption: "Lake views come standard — the water is right behind the house." },
-        { src: "assets/entrance-sign-far.jpg", alt: "The gated entrance to Sandstone Point from the road, with the stone sign wall between the two gates under a blue sky", caption: "The front gate and entrance sign, from the road." }
+        { src: "assets/entrance-sign-far.jpg", alt: "The gated entrance to Sandstone Point from the road, with the stone sign wall between the two gates under a blue sky", caption: "The front gate and entrance sign, from the road." },
+        { src: "assets/swimmers-floats-in-cove.jpg", alt: "A big group of neighbors swimming and lounging on floats in a cove under tall rock bluffs", caption: "A summer float party under the bluffs." },
+        { src: "assets/group-on-boat-at-waterfall.jpg", alt: "Neighbors on a boat smiling in front of a waterfall pouring over a rock ledge into the lake", caption: "Boat trip to one of the lake's waterfalls." },
+        { src: "assets/striped-bass-catch.jpg", alt: "A smiling fisherman on a boat holding up a large striped bass", caption: "Lake Cumberland is famous for its striped bass." },
+        { src: "assets/road-down-to-the-lake-sunset.jpg", alt: "The neighborhood road dropping downhill toward the lake, with the sun low over the water and streaks of cloud", caption: "Heading down the hill toward the water." },
+        { src: "assets/lake-view-over-the-homes.jpg", alt: "Looking down over two neighborhood homes to an arm of Lake Cumberland winding between wooded hills", caption: "The view over the rooftops to the lake." },
+        { src: "assets/sunset-orange-sun-over-lake.jpg", alt: "An orange sun setting over a wooded point, with the lake below", caption: "Another evening, another sunset." },
+        { src: "assets/sunset-golden-clouds-fall.jpg", alt: "Golden clouds over the lake channel, with fall leaves in the foreground", caption: "Golden clouds over the channel in the fall." },
+        { src: "assets/cedar-house-fall.jpg", alt: "A two-story cedar-sided neighborhood home with a red shrub by the porch and fall leaves on the lawn", caption: "A neighborhood home in its fall colors." },
+        { src: "assets/log-cabin-front-spring.jpg", alt: "A log cabin with dogwoods blooming in front", caption: "A log cabin with the dogwoods in bloom." },
+        { src: "assets/poodle-on-deck-lake-view.jpg", alt: "A cream poodle standing on a deck, with a second dog and the lake behind", caption: "Deck patrol, lake view included." },
+        { src: "assets/fluffy-dog-lounging-on-deck.jpg", alt: "A white-and-tan fluffy dog lying on a wooden deck", caption: "Not every resident works hard." },
+        { src: "assets/binoculars-selfie-porch.jpg", alt: "A neighbor with binoculars taking a selfie on a covered porch", caption: "Bird-watching from the porch." },
+        { src: "assets/golf-cart-trailer-paddleboard.jpg", alt: "A golf cart on a trailer behind a car on the neighborhood road, with a paddleboard in front", caption: "Golf cart and paddleboard: the official lake-house kit." },
+        { src: "assets/lane-with-pampas-grass.jpg", alt: "A quiet paved lane climbing through bare fall trees, with pampas grass along the edge", caption: "A quiet lane through the woods in late fall." },
+        { src: "assets/road-in-through-the-woods.jpg", alt: "The neighborhood road winding through the woods, with sunlight streaming through the trees", caption: "The drive in, through the trees." }
       ];
 
       var grid = document.getElementById("galleryGrid");
@@ -444,7 +515,7 @@
         btn.type = "button";
         btn.setAttribute("aria-label", "View photo larger: " + p.caption);
         var img = document.createElement("img");
-        img.src = p.src; img.alt = p.alt;
+        img.src = p.src; img.alt = p.alt; img.loading = "lazy";
         btn.appendChild(img);
         btn.addEventListener("click", function () { openLB(i); });
         var cap = document.createElement("figcaption");

@@ -10,6 +10,7 @@ The website for the Sandstone Point Property Owners Association at Lake Cumberla
 
 ```bash
 npm install
+npm start        # preview the site at http://localhost:4321 (PORT=… to change)
 npm test         # stack + content checks (no addresses, emails or phone numbers on the site)
 npm run deploy   # cdk deploy with the `sandstone` AWS profile
 ```

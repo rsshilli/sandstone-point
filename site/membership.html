@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="Every owner of Sandstone Point Lots 1 through 139 is automatically a member of the Sandstone Point Property Owners Association. The Wayne Circuit Court confirmed it in 2024." />
+    <title>HOA membership is required · Sandstone Point</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,500;0,700;0,800;1,500&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --lake-deep: #173f57;
+        --lake: #1d5a74;
+        --sun: #e9b44c;
+        --accent: #bc4636;
+        --sand: #e9e0cd;
+        --bg: #fdfcf9;
+        --surface: #ffffff;
+        --tint: #f2eee2;
+        --ink: #22303a;
+        --ink-soft: #4d5d68;
+        --line: #ddd5c0;
+        --shadow: 0 10px 30px rgba(23, 63, 87, 0.14);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --lake-deep: #0f2c3f;
+          --lake: #7fb3c8;
+          --accent: #e08a7a;
+          --sand: #2c2a22;
+          --bg: #131a1f;
+          --surface: #1c262e;
+          --tint: #1a232a;
+          --ink: #e9eef1;
+          --ink-soft: #b6c3cb;
+          --line: #33424d;
+          --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+        line-height: 1.6;
+        font-size: 1.05rem;
+      }
+      h1, h2, h3 { font-family: "Bitter", Georgia, serif; line-height: 1.2; margin: 0; }
+      a { color: var(--lake); }
+
+      /* ---------- Nav (same as the home page) ---------- */
+      .nav { position: sticky; top: 0; z-index: 40; background: var(--lake-deep); color: #fff; }
+      .nav-inner {
+        max-width: 1100px; margin: 0 auto; padding: 0 1.25rem;
+        display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+        min-height: 3.5rem;
+      }
+      .brand { font-family: "Bitter", Georgia, serif; font-weight: 800; font-size: 1.15rem; color: #fff; text-decoration: none; padding: 0.5rem 0; }
+      .brand span { color: var(--sun); }
+      .nav-links { display: flex; gap: 0.25rem; flex-wrap: wrap; }
+      .nav-links a {
+        color: #eaf3f7; text-decoration: none; font-weight: 600; font-size: 0.98rem;
+        padding: 0.6rem 0.8rem; min-height: 2.75rem; display: inline-flex; align-items: center;
+        border-radius: 0.4rem;
+      }
+      .nav-links a:hover, .nav-links a:focus-visible { background: rgba(255,255,255,0.14); }
+      .nav-links a[aria-current="page"] { background: rgba(255,255,255,0.14); }
+
+      /* ---------- Page ---------- */
+      .wrap { max-width: 860px; margin: 0 auto; padding: 0 1.25rem; }
+      .kicker { color: var(--accent); font-weight: 700; font-size: 0.9rem; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 0.5rem; }
+      .intro { background: var(--lake-deep); color: #d9e7ee; padding: 3.25rem 0 3rem; }
+      .intro .kicker { color: var(--sun); }
+      .intro h1 { color: #fff; font-size: clamp(1.9rem, 4.5vw, 2.7rem); font-weight: 800; }
+      .intro h1 em { font-style: normal; color: var(--sun); }
+      .intro .lede { font-size: 1.2rem; margin: 1rem 0 0; max-width: 44rem; }
+      .intro strong { color: #fff; }
+
+      section { padding: 2.75rem 0; }
+      section + section { border-top: 1px solid var(--line); }
+      h2 { color: var(--lake-deep); font-size: 1.6rem; margin-bottom: 1rem; }
+      @media (prefers-color-scheme: dark) { h2 { color: var(--lake); } }
+      p { margin: 0 0 1rem; }
+      .src { color: var(--ink-soft); font-size: 0.92rem; white-space: nowrap; }
+
+      .facts { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.9rem; }
+      .facts li {
+        background: var(--surface); border: 1px solid var(--line); border-left: 5px solid var(--sun);
+        border-radius: 0.6rem; padding: 0.9rem 1.1rem; box-shadow: var(--shadow);
+      }
+      .facts strong { color: var(--ink); }
+
+      .case {
+        background: var(--tint); border: 1px solid var(--line); border-radius: 0.8rem;
+        padding: 1.25rem 1.4rem; margin: 0 0 1.25rem;
+      }
+      .case dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.35rem 1.25rem; margin: 0; }
+      .case dt { font-weight: 700; color: var(--ink-soft); }
+      .case dd { margin: 0; }
+      @media (max-width: 560px) { .case dl { grid-template-columns: 1fr; gap: 0 0; } .case dd { margin-bottom: 0.5rem; } }
+
+      ol.ordered { padding-left: 1.4rem; margin: 0 0 1.5rem; }
+      ol.ordered li { margin-bottom: 0.6rem; }
+
+      .download {
+        display: inline-flex; align-items: center; gap: 0.6rem;
+        background: var(--lake-deep); color: #fff; text-decoration: none; font-weight: 700;
+        padding: 0.8rem 1.25rem; border-radius: 0.6rem; min-height: 2.75rem; box-shadow: var(--shadow);
+      }
+      .download:hover, .download:focus-visible { background: var(--lake); color: #fff; }
+      @media (prefers-color-scheme: dark) { .download { background: var(--sun); color: #131a1f; } .download:hover, .download:focus-visible { background: #f3cd7d; color: #131a1f; } }
+      .download small { font-weight: 400; opacity: 0.85; }
+
+      details { margin-top: 1.25rem; background: var(--surface); border: 1px solid var(--line); border-radius: 0.6rem; padding: 0.75rem 1.1rem; }
+      summary { cursor: pointer; font-weight: 700; color: var(--lake); min-height: 2rem; }
+      .transcript { font-family: Georgia, "Times New Roman", serif; font-size: 1rem; margin-top: 0.75rem; }
+      .transcript .center { text-align: center; }
+
+      .checklist { padding-left: 1.3rem; margin: 0; }
+      .checklist li { margin-bottom: 0.75rem; }
+
+      blockquote {
+        margin: 0 0 1.1rem; padding: 0.9rem 1.2rem; background: var(--tint);
+        border-left: 4px solid var(--lake); border-radius: 0 0.5rem 0.5rem 0;
+        font-family: Georgia, "Times New Roman", serif;
+      }
+      blockquote p { margin: 0 0 0.4rem; }
+      blockquote cite { font-style: normal; font-family: "Source Sans 3", system-ui, sans-serif; font-size: 0.92rem; color: var(--ink-soft); }
+
+      .smallprint { color: var(--ink-soft); font-size: 0.95rem; }
+
+      /* ---------- Footer (same as the home page) ---------- */
+      footer { background: var(--lake-deep); color: #cfe0e9; }
+      .footer-inner { max-width: 1100px; margin: 0 auto; padding: 2rem 1.25rem 2.4rem; text-align: center; }
+      .footer-inner .name { font-family: "Bitter", Georgia, serif; font-weight: 700; color: #fff; font-size: 1.15rem; }
+      .footer-inner p { margin: 0.35rem 0 0; font-size: 0.97rem; }
+      .footer-inner a { color: #fff; }
+      .footer-sun { width: 54px; height: 4px; border-radius: 2px; background: var(--sun); margin: 0 auto 1rem; }
+    </style>
+  </head>
+  <body>
+    <nav class="nav" aria-label="Site">
+      <div class="nav-inner">
+        <a class="brand" href="/">Sandstone <span>Point</span></a>
+        <div class="nav-links">
+          <a href="/">Home</a>
+          <a href="/#gallery">Gallery</a>
+          <a href="/#build">Build</a>
+          <a href="/#hoa">HOA</a>
+          <a href="/membership.html" aria-current="page">Membership</a>
+        </div>
+      </div>
+    </nav>
+
+    <header class="intro">
+      <div class="wrap">
+        <p class="kicker">Property Owners Association</p>
+        <h1>HOA membership is <em>required</em>, not optional</h1>
+        <p class="lede">
+          Every owner of <strong>Lots 1 through 139</strong> is automatically a member of the
+          Sandstone Point Property Owners Association and owes its dues. The Wayne Circuit Court
+          confirmed this in an order entered <strong>August 12, 2024</strong>.
+        </p>
+      </div>
+    </header>
+
+    <main>
+      <section aria-labelledby="short">
+        <div class="wrap">
+          <h2 id="short">The short version</h2>
+          <ul class="facts">
+            <li><strong>Owning a lot makes you a member.</strong> There is no sign-up form and no way to opt out. <span class="src">Declaration §8.1</span></li>
+            <li><strong>Dues stay with the lot.</strong> The dues "run with the land": they bind every later owner, heir and successor, not just the first buyer. <span class="src">Declaration §8.2</span></li>
+            <li><strong>Unpaid dues follow the lot, too.</strong> They earn interest, can add collection costs and attorney fees, and become a continuing lien on the lot that the Association can foreclose. <span class="src">Declaration §8.6</span></li>
+            <li><strong>A court has settled it.</strong> The Wayne Circuit Court declared that the 2005 Declaration and its Supplemental Declaration apply to Lots 1 through 139. <span class="src">Order, Case No. 23-CI-00307</span></li>
+          </ul>
+        </div>
+      </section>
+
+      <section aria-labelledby="court">
+        <div class="wrap">
+          <h2 id="court">What the court decided</h2>
+          <div class="case">
+            <dl>
+              <dt>Court</dt><dd>Wayne Circuit Court, Commonwealth of Kentucky</dd>
+              <dt>Case</dt><dd>Civil Action No. 23-CI-00307</dd>
+              <dt>Parties</dt><dd>Sandstone Point Property Owners Association, Inc. (plaintiff) v. MPD II LLC (defendant)</dd>
+              <dt>Entered</dt><dd>August 12, 2024</dd>
+            </dl>
+          </div>
+          <p>After hearing from the lawyers for both sides, the court ordered that:</p>
+          <ol class="ordered">
+            <li>The <strong>2022 Amendment</strong> to the Declaration (Book 404, pages 537–539) is struck from the Wayne County Clerk's records.</li>
+            <li>The <strong>2005 Declaration</strong> (Deed Book 310, pages 664–679) and the <strong>Supplemental Declaration</strong> (Deed Book 328, pages 66–68) <strong>apply to Sandstone Point Lot owners 1 through 139</strong>.</li>
+            <li>The Association may ask the court to recover its attorney fees and costs under Article 15 of the 2005 Declaration.</li>
+            <li>The defendant's counterclaim is dismissed.</li>
+          </ol>
+          <a class="download" href="/docs/2024-court-order-lots-1-139.pdf" target="_blank" rel="noopener">
+            Read the court order <small>(PDF, 2 pages)</small>
+          </a>
+
+          <details>
+            <summary>Full text of the order</summary>
+            <div class="transcript">
+              <p class="center">COMMONWEALTH OF KENTUCKY<br />WAYNE CIRCUIT COURT<br />CIVIL ACTION NO. 23-CI-00307<br /><em>ELECTRONICALLY FILED</em></p>
+              <p>SANDSTONE POINT PROPERTY OWNERS ASSOCIATION, INC., PLAINTIFF<br />vs. ORDER<br />MPD II LLC, DEFENDANT</p>
+              <p>Upon the Motion of the Plaintiff, Sandstone Point Property Owners Association, Inc., and the Court having reviewed the record and having heard the argument of counsel for all parties, it is hereby</p>
+              <p>ORDERED AS FOLLOWED:</p>
+              <p>(1) That the 2022 Amendment to Declaration of Easements, Covenants, Conditions and Restrictions for the Plat(s) of Sandstone Point in book 404, page numbers 537, 538 and 539 be stricken from the Wayne County Clerk's records;</p>
+              <p>(2) That the Court declare that the "Declaration of Easements, Covenants, Conditions and Restrictions for the Plat of Sandstone Point", which has been recorded in the Clerk's Office for Wayne County, Kentucky in Deed Book 310, p. 664-679 (the "2005 Declaration"), and the "Supplemental Declaration of Easements, Reservations, Covenants, Conditions and Restrictions for the Plat(s) of Sandstone Point," which has been recorded in the Clerk's Office for Wayne County, Kentucky in Deed Book 328, Page 66-68), shall apply to Sandstone Point Lot owners 1 through 139;</p>
+              <p>(3) That the Plaintiff shall submit its attorney fees and other costs to the Court for review and potential recovery under Article 15 of the 2005 "Declaration of Easements, Covenants, Conditions and Restrictions for the Plat of Sandstone Point"; and</p>
+              <p>(4) That Defendant's Counterclaim be dismissed.</p>
+              <p>Electronically signed by Judge Sara Beth Gregory, 8/12/2024.</p>
+              <p><em>The second page ends with the clerk's certificate of service on counsel for both parties; see the PDF.</em></p>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <section aria-labelledby="buyers">
+        <div class="wrap">
+          <h2 id="buyers">For buyers, real estate agents and title companies</h2>
+          <ul class="checklist">
+            <li><strong>Title search:</strong> the 2005 Declaration is recorded with the Wayne County Clerk in Deed Book 310, page 664, and the Supplemental Declaration in Deed Book 328, page 66. Both bind Lots 1 through 139.</li>
+            <li><strong>Ignore the 2022 Amendment.</strong> The court ordered it struck from the Clerk's records (Book 404, pages 537–539).</li>
+            <li><strong>Tell buyers up front</strong> that the lot comes with a required Association membership and annual dues.</li>
+            <li><strong>Ask the Association for a dues statement before closing.</strong> Unpaid dues are a continuing lien on the lot, so they don't go away when the lot is sold.</li>
+            <li><strong>Sellers:</strong> the Declaration asks the seller to give the Association the buyer's name and mailing address after the sale (§8.8).</li>
+          </ul>
+        </div>
+      </section>
+
+      <section aria-labelledby="words">
+        <div class="wrap">
+          <h2 id="words">In the Declaration's own words</h2>
+          <blockquote>
+            <p>"Lot Owners shall automatically, by virtue thereof, become a member of the Sandstone Point Property Owners Association, Inc., a non-profit corporation chartered in the State of Kentucky."</p>
+            <cite>2005 Declaration, Article 8, §8.1</cite>
+          </blockquote>
+          <blockquote>
+            <p>"As a member of the Association, each Lot Owner agrees for himself or herself, and his or her heirs, successors and assigns, to pay to the Association any dues, assessments for maintenance charges and costs or fines … The Dues shall run with the land."</p>
+            <cite>2005 Declaration, Article 8, §8.2</cite>
+          </blockquote>
+          <blockquote>
+            <p>"The provisions hereof shall run with the Development and shall be binding upon all Lot Owners and all persons claiming under them for a period of forty (40) years from the date this Declaration is recorded, after which time said Declaration shall be automatically extended for successive periods of ten (10) years each …"</p>
+            <cite>2005 Declaration, Article 16</cite>
+          </blockquote>
+          <p class="smallprint">
+            This page is a plain-language summary for owners, buyers and their agents, not legal advice.
+            The recorded Declarations and the court's order are what govern. For the current dues amount
+            or a dues statement, contact the HOA board.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer-inner">
+        <div class="footer-sun" aria-hidden="true"></div>
+        <p class="name">Sandstone Point at Lake Cumberland · Monticello, Kentucky</p>
+        <p><a href="/">Back to the home page</a></p>
+      </div>
+    </footer>
+  </body>
+</html>

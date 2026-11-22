@@ -63,6 +63,18 @@ describe('public site content', () => {
     }
   });
 
+  it('should have every document the pages link to, and link the membership page from the home page', () => {
+    const pages = readdirSync(siteDir).filter((name) => name.endsWith('.html'));
+    const docs = new Set(
+      pages.flatMap((name) => readFileSync(join(siteDir, name), 'utf8').match(/\/docs\/[a-z0-9-]+\.pdf/g) ?? []),
+    );
+    expect(docs.size).toBeGreaterThanOrEqual(1);
+    for (const doc of docs) {
+      expect(existsSync(join(siteDir, doc)), doc).toBe(true);
+    }
+    expect(readFileSync(join(siteDir, 'index.html'), 'utf8')).toContain('href="/membership.html"');
+  });
+
   it('should ship photos without camera (EXIF) data, which can carry GPS location', () => {
     for (const image of referencedImages()) {
       const bytes = readFileSync(join(siteDir, image));

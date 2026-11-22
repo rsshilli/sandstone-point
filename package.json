@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Sandstone Point HOA website and resident portal (AWS CDK)",
   "scripts": {
+    "start": "tsx scripts/serve.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "synth": "cdk synth",

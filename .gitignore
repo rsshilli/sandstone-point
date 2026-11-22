@@ -16,10 +16,9 @@ cdk.out/
 .cdk.staging/
 cdk.context.json.bak
 
-# Photos of people stay local (not for the public site)
+# Raw originals of neighbors' photos (one shows a readable license plate). The cleaned,
+# published copies live in site/assets/.
 photos/people/
-# A neighbor's house: not public until the owner agrees
-photos/scenery/log-cabin-front-spring.jpg
 
 # Private notes: the street address, names, account screenshots (this repo is public)
 PROGRESS.md
