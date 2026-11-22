@@ -3,7 +3,7 @@ import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { AERIAL, PIECES, parseBearing, placePiece, ringArea } from '../scripts/build-lot-map';
 // @ts-expect-error plain browser JavaScript, no type declarations
-import { captionText, projectToImage, viewBoxFor } from '../site/js/lot-map.js';
+import { boundsOf, captionText, neighborhoodBounds, padBounds } from '../site/js/lot-map.js';
 
 const siteDir = join(__dirname, '..', 'site');
 const lotMap = JSON.parse(readFileSync(join(siteDir, 'data', 'lot-map.json'), 'utf8')) as {
@@ -39,14 +39,14 @@ describe('lot map data', () => {
     }
   });
 
-  it('should keep every lot inside the aerial photo', () => {
+  it('should keep every lot inside the whole-neighborhood view', () => {
+    const { south, north, west, east } = lotMap.aerial;
     for (const [lot, ring] of Object.entries(lotMap.lots)) {
       for (const [lat, lon] of ring) {
-        const [x, y] = projectToImage(lat, lon, lotMap.aerial);
-        expect(x, `lot ${lot}`).toBeGreaterThan(0);
-        expect(x, `lot ${lot}`).toBeLessThan(lotMap.aerial.width);
-        expect(y, `lot ${lot}`).toBeGreaterThan(0);
-        expect(y, `lot ${lot}`).toBeLessThan(lotMap.aerial.height);
+        expect(lat, `lot ${lot}`).toBeGreaterThan(south);
+        expect(lat, `lot ${lot}`).toBeLessThan(north);
+        expect(lon, `lot ${lot}`).toBeGreaterThan(west);
+        expect(lon, `lot ${lot}`).toBeLessThan(east);
       }
     }
   });
@@ -73,37 +73,21 @@ describe('ringArea', () => {
   });
 });
 
-describe('projectToImage', () => {
-  it('should put the photo corners at its pixel corners and stretch north–south like a web map', () => {
-    const aerial = lotMap.aerial;
-    expect(projectToImage(aerial.north, aerial.west, aerial)).toEqual([0, 0]);
-    expect(projectToImage(aerial.south, aerial.east, aerial)).toEqual([aerial.width, aerial.height]);
-    const [, middle] = projectToImage((aerial.north + aerial.south) / 2, aerial.west, aerial);
-    expect(middle).toBeGreaterThan(aerial.height / 2 - 2);
-    expect(middle).not.toBe(aerial.height / 2);
+describe('neighborhoodBounds', () => {
+  it('should turn the area edges into south-west and north-east corners', () => {
+    expect(neighborhoodBounds({ west: -85.0125, east: -84.9905, south: 36.8595, north: 36.8855 })).toEqual([[36.8595, -85.0125], [36.8855, -84.9905]]);
   });
 });
 
-describe('viewBoxFor', () => {
-  const aerial = { width: 1600, height: 2365 };
-
-  it('should zoom to at least 520 pixels around a small lot', () => {
-    expect(viewBoxFor([[[800, 1000], [840, 1000], [840, 1040]]], aerial)).toEqual([560, 760, 520, 520]);
+describe('padBounds', () => {
+  it('should grow the area by the share of its size on every side', () => {
+    expect(padBounds([[10, 20], [12, 24]], 0.5)).toEqual([[9, 18], [13, 26]]);
   });
+});
 
-  it('should stay inside the photo for a lot at its edge', () => {
-    const [x, y, w, h] = viewBoxFor([[[5, 5], [60, 5], [60, 60]]], aerial);
-    expect([x, y]).toEqual([0, 0]);
-    expect(w).toBe(520);
-    expect(h).toBe(520);
-  });
-
-  it('should cover lots far apart with room to spare', () => {
-    const [x, y, w, h] = viewBoxFor([[[300, 900]], [[700, 1200]]], aerial);
-    expect(x).toBeLessThanOrEqual(300 - 140);
-    expect(y).toBeLessThanOrEqual(900 - 140);
-    expect(x + w).toBeGreaterThanOrEqual(700 + 140);
-    expect(y + h).toBeGreaterThanOrEqual(1200 + 140);
+describe('boundsOf', () => {
+  it('should hold every corner of every lot given', () => {
+    expect(boundsOf([[[36.87, -85.0], [36.871, -85.002]], [[36.869, -84.999]]])).toEqual([[36.869, -85.002], [36.871, -84.999]]);
   });
 });
 
@@ -117,7 +101,7 @@ describe('captionText', () => {
     expect(captionText(['50', '5'], ['50'], 'Photo: USGS')).toMatch(/^Lot 5 isn’t on the map yet/);
   });
 
-  it('should only give the credit and the approximate-lines note when every lot is drawn', () => {
-    expect(captionText(['50'], ['50'], 'Photo: USGS')).toBe('Lot lines are traced from the recorded plat and are approximate, not a survey. Photo: USGS.');
+  it('should only give the how-to, the credit and the approximate-lines note when every lot is drawn', () => {
+    expect(captionText(['50'], ['50'], 'Photo: USGS')).toBe('Drag to move, and scroll or pinch to zoom. Lot lines are traced from the recorded plat and are approximate, not a survey. Photo: USGS.');
   });
 });

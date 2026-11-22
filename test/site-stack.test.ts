@@ -8,9 +8,10 @@ const env = { account: '692580093266', region: 'us-east-1' };
 /**
  * Synthesizes the stack into a CloudFormation template for assertions.
  * @param domainName optional domain to configure
+ * @param boardMessages whether to switch on "Message the board"
  * @returns the synthesized template
  */
-function synth(domainName?: string): Template {
+function synth(domainName?: string, boardMessages = false): Template {
   const app = new cdk.App();
   if (domainName) {
     // Pre-seed the Route 53 lookup so the test never calls AWS.
@@ -19,7 +20,7 @@ function synth(domainName?: string): Template {
       { Id: '/hostedzone/Z123TEST', Name: `${domainName}.` },
     );
   }
-  return Template.fromStack(new SiteStack(app, 'Test', { env, domainName }));
+  return Template.fromStack(new SiteStack(app, 'Test', { env, domainName, boardMessages }));
 }
 
 describe('SiteStack', () => {
@@ -57,10 +58,10 @@ describe('SiteStack', () => {
     template.resourceCountIs('AWS::Route53::RecordSet', 7);
   });
 
-  it('should let the API email the board from the HOA domain only when a domain is given', () => {
-    const withDomain = synth('example-hoa.org');
-    withDomain.hasResourceProperties('AWS::SES::EmailIdentity', { EmailIdentity: 'example-hoa.org' });
-    withDomain.hasResourceProperties('AWS::Lambda::Function', {
+  it('should let the API email the board from the HOA domain only when switched on and a domain is given', () => {
+    const on = synth('example-hoa.org', true);
+    on.hasResourceProperties('AWS::SES::EmailIdentity', { EmailIdentity: 'example-hoa.org' });
+    on.hasResourceProperties('AWS::Lambda::Function', {
       Environment: {
         Variables: Match.objectLike({
           BOARD_EMAIL_FROM: 'Sandstone Point website <website@example-hoa.org>',
@@ -68,14 +69,31 @@ describe('SiteStack', () => {
         }),
       },
     });
-    withDomain.hasResourceProperties('AWS::IAM::Policy', {
+    on.hasResourceProperties('AWS::IAM::Policy', {
       PolicyDocument: { Statement: Match.arrayWith([Match.objectLike({ Action: Match.arrayWith(['ses:SendEmail']) })]) },
     });
-    const without = synth();
-    without.resourceCountIs('AWS::SES::EmailIdentity', 0);
-    without.hasResourceProperties('AWS::Lambda::Function', {
-      Environment: { Variables: Match.objectLike({ BOARD_EMAIL_TO: Match.absent() }) },
+
+    // Domain but switched off: the domain is set up for SES (so it verifies), but the form stays hidden.
+    const off = synth('example-hoa.org');
+    off.hasResourceProperties('AWS::SES::EmailIdentity', { EmailIdentity: 'example-hoa.org' });
+    off.hasResourceProperties('AWS::Lambda::Function', {
+      Environment: { Variables: Match.objectLike({ GOOGLE_SECRET_ID: Match.anyValue(), BOARD_EMAIL_TO: Match.absent() }) },
     });
+    expect(JSON.stringify(off.toJSON())).not.toContain('ses:SendEmail');
+
+    const noDomain = synth(undefined, true);
+    noDomain.resourceCountIs('AWS::SES::EmailIdentity', 0);
+    noDomain.hasResourceProperties('AWS::Lambda::Function', {
+      Environment: { Variables: Match.objectLike({ GOOGLE_SECRET_ID: Match.anyValue(), BOARD_EMAIL_TO: Match.absent() }) },
+    });
+  });
+
+  it('should throttle the board-message route far below the rest of the API', () => {
+    synth().hasResourceProperties('AWS::ApiGatewayV2::Stage', {
+      DefaultRouteSettings: { ThrottlingRateLimit: 20, ThrottlingBurstLimit: 40 },
+      RouteSettings: { 'POST /api/messages': { ThrottlingRateLimit: 1, ThrottlingBurstLimit: 5 } },
+    });
+    synth().hasResourceProperties('AWS::ApiGatewayV2::Route', { RouteKey: 'POST /api/messages' });
   });
 
   it('should create an owner pool where people sign up with a verified email, kept on stack deletion', () => {

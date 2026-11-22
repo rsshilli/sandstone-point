@@ -16,6 +16,7 @@ import * as apigw from 'aws-cdk-lib/aws-apigatewayv2';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as ses from 'aws-cdk-lib/aws-ses';
+import { BOARD_EMAIL } from './portal/mailer';
 
 /**
  * Secrets Manager secret holding `{spreadsheetId, client_email, private_key}` for the owner
@@ -24,8 +25,7 @@ import * as ses from 'aws-cdk-lib/aws-ses';
  */
 export const GOOGLE_SECRET_NAME = 'sandstone-point/google-sheets';
 
-/** The board's Google Group: owners' messages from the owner page are emailed here. */
-export const BOARD_EMAIL = 'sandstone-point-hoa@googlegroups.com';
+export { BOARD_EMAIL };
 
 /** The owner-login pieces the distribution and the upload need. */
 interface Portal {
@@ -181,7 +181,8 @@ export class SiteStack extends cdk.Stack {
     // Slow down anyone hammering the API; a neighbourhood needs a handful of requests a second.
     const stage = api.defaultStage?.node.defaultChild as apigw.CfnStage;
     stage.defaultRouteSettings = { throttlingRateLimit: 20, throttlingBurstLimit: 40 };
-    stage.routeSettings = { 'POST /api/messages': { throttlingRateLimit: 1, throttlingBurstLimit: 5 } };
+    // RouteSettings is a free-form map, so CDK passes it through as written: use CloudFormation's casing.
+    stage.routeSettings = { 'POST /api/messages': { ThrottlingRateLimit: 1, ThrottlingBurstLimit: 5 } };
     return { userPool, client, api };
   }
 

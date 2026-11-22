@@ -12,7 +12,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@700;800&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/vendor/leaflet/leaflet.css" />
     <link rel="stylesheet" href="/portal.css" />
+    <script src="/js/map-setup.js" defer></script>
+    <script src="/vendor/leaflet/leaflet.js" defer></script>
     <script type="module" src="/js/portal.js"></script>
   </head>
   <body>
@@ -44,6 +47,12 @@
 
       <div id="message" class="message" role="alert" hidden></div>
 
+      <!-- Admins only: switch between their own owner page and the admin tools -->
+      <div class="tabs" id="view-tabs" role="tablist" aria-label="Which page" hidden>
+        <button type="button" role="tab" id="tab-owner" data-view="member" aria-controls="member" aria-selected="true">Owner</button>
+        <button type="button" role="tab" id="tab-admin" data-view="admin" aria-controls="admin" aria-selected="false">Admin <span class="count" id="request-count" hidden></span></button>
+      </div>
+
       <!-- Shown to owners on the Owners tab -->
       <div id="member" hidden>
         <div class="stats">
@@ -71,7 +80,7 @@
             <tbody id="ledger"></tbody>
           </table>
         </div>
-        <p class="muted" style="margin-top:1rem">Something look wrong? Tell a board member and they&rsquo;ll fix the records.</p>
+        <p class="muted" style="margin-top:1rem">Something look wrong? <a data-board-email data-subject="My lot records">Tell a board member</a> and they&rsquo;ll fix the records.</p>
 
         <section id="board-message" hidden>
           <h2>Message the board</h2>

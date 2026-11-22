@@ -89,6 +89,12 @@ button[disabled] { opacity: 0.6; cursor: wait; }
 .message.info { background: var(--tint); border-left: 4px solid var(--lake); }
 
 /* Portal */
+.tabs { display: flex; gap: 0.25rem; margin-top: 1.5rem; border-bottom: 2px solid var(--line); }
+.tabs [role="tab"] { background: none; color: var(--lake); border: 0; border-bottom: 3px solid transparent; border-radius: 0; margin-bottom: -2px; padding: 0.6rem 1.1rem; }
+.tabs [role="tab"]:hover { background: none; color: var(--lake-deep); }
+.tabs [role="tab"][aria-selected="true"] { color: var(--lake-deep); border-bottom-color: var(--sun); }
+.tabs .count { display: inline-block; min-width: 1.4em; margin-left: 0.35rem; padding: 0 0.4em; border-radius: 999px; background: var(--accent); color: #fff; font-size: 0.8rem; line-height: 1.4; text-align: center; }
+.tabs .count[hidden] { display: none; }
 .top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 1rem; }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 1rem; margin-top: 1.5rem; }
 .stat { background: var(--surface); border: 1px solid var(--line); border-left: 5px solid var(--sun); border-radius: 0.7rem; padding: 1rem 1.2rem; box-shadow: var(--shadow); }
@@ -103,12 +109,13 @@ button[disabled] { opacity: 0.6; cursor: wait; }
 .board-form .failed { color: var(--accent); font-weight: 600; }
 /* "Where your lots are": aerial photo with traced lot lines; the owner's lots in sun yellow */
 .lot-map { margin: 0; }
-.lot-map svg { display: block; width: 100%; max-height: 72vh; aspect-ratio: 1; background: #24402c; border-radius: 0.7rem; box-shadow: var(--shadow); }
-.lot-map svg.whole { aspect-ratio: auto; }
-.lot-map .lot polygon { fill: rgba(255, 255, 255, 0.06); stroke: rgba(255, 255, 255, 0.85); stroke-width: 2; vector-effect: non-scaling-stroke; }
-.lot-map .lot text { fill: #fff; font: 700 15px "Source Sans 3", system-ui, sans-serif; text-anchor: middle; dominant-baseline: central; paint-order: stroke; stroke: rgba(0, 0, 0, 0.7); stroke-width: 3px; pointer-events: none; }
-.lot-map .lot.mine polygon { fill: rgba(233, 180, 76, 0.42); stroke: var(--sun); stroke-width: 4; }
-.lot-map .lot.mine text { font-size: 22px; }
+.lot-map-canvas { width: 100%; height: min(72vh, 40rem); background: #24402c; border-radius: 0.7rem; box-shadow: var(--shadow); z-index: 0; }
+.lot-map .lot { fill: rgba(255, 255, 255, 0.06); stroke: rgba(255, 255, 255, 0.85); stroke-width: 2; }
+.lot-map .lot.mine { fill: rgba(233, 180, 76, 0.42); stroke: var(--sun); stroke-width: 4; }
+.lot-map .leaflet-tooltip.lot-label { background: none; border: 0; box-shadow: none; padding: 0; color: #fff; font: 700 15px "Source Sans 3", system-ui, sans-serif; text-shadow: 0 0 3px rgba(0, 0, 0, 0.9), 0 0 1px #000; }
+.lot-map .leaflet-tooltip.lot-label.mine { font-size: 22px; }
+.lot-map .leaflet-tooltip.lot-label::before { display: none; }
+.lot-map .far .leaflet-tooltip.lot-label:not(.mine) { display: none; }
 .lot-map button { margin-top: 0.75rem; }
 .lot-map figcaption { margin-top: 0.5rem; font-size: 0.92rem; }
 table { border-collapse: collapse; width: 100%; font-size: 0.98rem; }

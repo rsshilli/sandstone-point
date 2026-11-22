@@ -11,6 +11,8 @@ let filterWired = false;
 let ownerContacts = new Map();
 /** The owner record open in the contact window. */
 let openOwnerId = '';
+/** The board's email (from /api/me, so it never sits in the published HTML). */
+let boardEmail = '';
 
 /**
  * Loads the account and shows the right view.
@@ -27,10 +29,13 @@ async function main() {
   try {
     const me = await api('/api/me');
     document.getElementById('signed-in-as').textContent = `Signed in as ${me.email}`;
+    boardEmail = me.boardEmail || '';
+    document.querySelectorAll('a[data-board-email]').forEach(linkToBoard);
     if (me.kind === 'member') {
       showMember(me);
       if (me.allLots) {
         showAdmin(me.allLots);
+        showTabs();
         wireOwnerDialog();
         await Promise.all([loadRequests(), loadOwners()]);
       }
@@ -44,12 +49,42 @@ async function main() {
 }
 
 /**
+ * Points an "Ask the board" link at an email to the board, with its `data-subject` as the subject.
+ * Without the address the link stays plain text.
+ * @param {HTMLAnchorElement} link
+ */
+function linkToBoard(link) {
+  if (!boardEmail) {
+    return;
+  }
+  const subject = link.dataset.subject;
+  link.href = `mailto:${boardEmail}${subject ? `?subject=${encodeURIComponent(subject)}` : ''}`;
+}
+
+/**
+ * Makes an "Ask the board" email link.
+ * @param {string} text the link text
+ * @param {string} subject the email's subject
+ * @returns {HTMLAnchorElement}
+ */
+function boardLink(text, subject) {
+  const link = el('a', { 'data-board-email': '', 'data-subject': subject }, text);
+  linkToBoard(link);
+  return link;
+}
+
+/**
  * Fills in the owner view.
  * @param {any} me the /api/me answer
  */
 function showMember(me) {
   document.getElementById('greeting').textContent = `Hello, ${me.name}`;
-  document.getElementById('gate-code').textContent = me.gateCode || 'Ask the board';
+  const gate = document.getElementById('gate-code');
+  if (me.gateCode) {
+    gate.textContent = me.gateCode;
+  } else {
+    gate.replaceChildren(boardLink('Ask the board', 'Gate code'));
+  }
   const owed = document.getElementById('total-owed');
   owed.textContent = me.totalOwed > 0 ? money.format(me.totalOwed) : me.totalOwed < 0 ? `${money.format(-me.totalOwed)} credit` : 'Nothing';
   owed.classList.toggle('ok', me.totalOwed <= 0);
@@ -130,7 +165,31 @@ function showAdmin(lots) {
   renderAllLots();
   const total = lots.reduce((sum, lot) => sum + Math.max(lot.balance, 0), 0);
   document.getElementById('all-total').textContent = `${lots.length} lots · ${money.format(total)} owed in total`;
-  document.getElementById('admin').hidden = false;
+}
+
+/**
+ * Shows admins the Owner / Admin tabs, starting on the Owner page so it looks the same as every
+ * other owner's. The admin tools stay out of sight until the Admin tab is picked.
+ */
+function showTabs() {
+  const tabs = document.getElementById('view-tabs');
+  for (const tab of tabs.querySelectorAll('[role="tab"]')) {
+    tab.addEventListener('click', () => selectTab(tab.dataset.view));
+  }
+  tabs.hidden = false;
+  selectTab('member');
+}
+
+/**
+ * Shows one view (the owner page or the admin tools) and marks its tab as picked.
+ * @param {string} view the id of the section to show: "member" or "admin"
+ */
+function selectTab(view) {
+  for (const tab of document.querySelectorAll('#view-tabs [role="tab"]')) {
+    const picked = tab.dataset.view === view;
+    tab.setAttribute('aria-selected', String(picked));
+    document.getElementById(tab.dataset.view).hidden = !picked;
+  }
 }
 
 /**
@@ -340,6 +399,10 @@ async function loadRequests() {
   const list = document.getElementById('requests');
   list.replaceChildren();
   document.getElementById('requests-empty').hidden = requests.length > 0;
+  const count = document.getElementById('request-count');
+  count.textContent = String(requests.length);
+  count.hidden = requests.length === 0;
+  count.title = `${requests.length} sign-up ${requests.length === 1 ? 'request' : 'requests'} waiting`;
   for (const request of requests) {
     list.append(requestCard(request, owners));
   }
@@ -434,7 +497,9 @@ function showVisitor(me) {
     );
   } else {
     if (me.request?.status === 'Rejected') {
-      status.append(el('p', { class: 'message info' }, 'The board couldn’t match your last request to a lot. Check the details and try again, or talk to a board member.'));
+      const note = el('p', { class: 'message info' }, 'The board couldn’t match your last request to a lot. Check the details and try again, or ');
+      note.append(boardLink('talk to a board member', 'My sign-up request'), '.');
+      status.append(note);
     }
     form.hidden = false;
     form.addEventListener('submit', async (event) => {

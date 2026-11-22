@@ -119,7 +119,7 @@ describe('portal API', () => {
 
   it('should show nothing private to an Inactive owner or a stranger, only their request status', async () => {
     const former = await call('GET', '/api/me', 'former@example.com');
-    expect(former.body).toEqual({ kind: 'visitor', email: 'former@example.com', request: null });
+    expect(former.body).toEqual({ kind: 'visitor', email: 'former@example.com', request: null, boardEmail: 'sandstone-point-hoa@googlegroups.com' });
     const pending = await call('GET', '/api/me', 'pending@example.com');
     expect(pending.body.request).toEqual({ status: 'Pending', submitted: '2026-11-20' });
   });
@@ -297,6 +297,7 @@ describe('portal API', () => {
     deps.mailer = { send: async (message) => void sent.push(message) };
     deps.messageLimiter = new SendLimiter();
     expect((await call('GET', '/api/me', 'owner@example.com')).body.canMessageBoard).toBe(true);
+    expect((await call('GET', '/api/me', 'owner@example.com')).body.boardEmail).toBe('sandstone-point-hoa@googlegroups.com');
     const response = await call('POST', '/api/messages', 'owner@example.com', { subject: 'Gate\r\nBcc: x@evil.test', message: 'The gate is stuck.\nThanks!' });
     expect(response).toEqual({ status: 202, body: { ok: true } });
     expect(sent).toHaveLength(1);
@@ -321,6 +322,18 @@ describe('portal API', () => {
     expect(sent.map((message) => message.text.split('\n')[0])).toEqual(['one', 'two']);
   });
 
+  it('should not count a board message against the owner’s limit when the email fails', async () => {
+    let failing = true;
+    const sent: BoardMessage[] = [];
+    deps.mailer = { send: async (message) => { if (failing) { throw new Error('SES said no'); } sent.push(message); } };
+    deps.messageLimiter = new SendLimiter(1, 60_000);
+    expect((await call('POST', '/api/messages', 'owner@example.com', { message: 'first try' })).status).toBe(500);
+    failing = false;
+    expect((await call('POST', '/api/messages', 'owner@example.com', { message: 'second try' })).status).toBe(202);
+    expect((await call('POST', '/api/messages', 'owner@example.com', { message: 'third' })).status).toBe(429);
+    expect(sent).toHaveLength(1);
+  });
+
   it('should hide the board form and refuse messages when no mailer is set up', async () => {
     expect((await call('GET', '/api/me', 'owner@example.com')).body.canMessageBoard).toBe(false);
     expect((await call('POST', '/api/messages', 'owner@example.com', { message: 'Hi' })).status).toBe(503);
@@ -335,6 +348,14 @@ describe('SendLimiter', () => {
     expect(limiter.tryUse('a', 20)).toBe(false);
     expect(limiter.tryUse('b', 20)).toBe(true);
     expect(limiter.tryUse('a', 1001)).toBe(true);
+  });
+
+  it('should give back a refunded send so the sender can try again', () => {
+    const limiter = new SendLimiter(1, 1000);
+    expect(limiter.tryUse('a', 0)).toBe(true);
+    limiter.refund('a', 0);
+    expect(limiter.tryUse('a', 5)).toBe(true);
+    expect(limiter.tryUse('a', 6)).toBe(false);
   });
 });
 

@@ -1,5 +1,11 @@
 import { SendEmailCommand, SESv2Client } from '@aws-sdk/client-sesv2';
 
+/**
+ * The board's Google Group. Owners' messages are emailed here, and signed-in people get it from
+ * /api/me for the "Ask the board" links. It is kept out of the published HTML on purpose.
+ */
+export const BOARD_EMAIL = 'sandstone-point-hoa@googlegroups.com';
+
 /** An owner's message to the board, ready to send. */
 export interface BoardMessage {
   subject: string;

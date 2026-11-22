@@ -1,6 +1,6 @@
 import { readSheet, type LedgerEntry, type Lot, type Owner, type OwnerContact, type SheetData, type SheetSource, type SignupRequest } from './sheet';
 import { AuthError, type Identity, type TokenVerifier } from './auth';
-import type { BoardMailer } from './mailer';
+import { BOARD_EMAIL, type BoardMailer } from './mailer';
 
 /** An HTTP request, reduced to what the portal API needs (same shape locally and in Lambda). */
 export interface ApiRequest {
@@ -160,6 +160,7 @@ export async function handleApiRequest(request: ApiRequest, deps: ApiDeps): Prom
 /**
  * Builds the "my account" view. An active owner gets their lots, balance, gate code and
  * ledger; an admin also gets every lot. Anyone else gets the status of their sign-up request.
+ * Everyone signed in gets the board's email address, for the page's "Ask the board" links.
  * @param identity the signed-in person
  * @param data the sheet
  * @param canMessageBoard whether the "Message the board" form works (a mailer is set up)
@@ -174,6 +175,7 @@ export function describeMe(identity: Identity, data: SheetData, canMessageBoard 
       kind: 'visitor',
       email: identity.email,
       request: request ? { status: request.status, submitted: request.submitted } : null,
+      boardEmail: BOARD_EMAIL,
     };
   }
   const ids = new Set(records.map((owner) => owner.id));
@@ -192,6 +194,7 @@ export function describeMe(identity: Identity, data: SheetData, canMessageBoard 
     ledger: data.ledger.filter((entry) => lotNumbers.has(entry.lot)).map(describeEntry),
     allLots: isAdmin ? data.lots.map((lot) => describeLotForAdmin(lot, data)) : undefined,
     canMessageBoard,
+    boardEmail: BOARD_EMAIL,
   };
 }
 
