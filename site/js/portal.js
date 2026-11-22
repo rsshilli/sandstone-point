@@ -75,7 +75,46 @@ function showMember(me) {
   );
   document.getElementById('ledger-empty').hidden = me.ledger.length > 0;
   document.getElementById('ledger-wrap').hidden = me.ledger.length === 0;
+  if (me.canMessageBoard) {
+    wireBoardForm(me.email);
+  }
   document.getElementById('member').hidden = false;
+}
+
+/**
+ * Shows the "Message the board" form and sends it through the API.
+ * @param {string} email the owner's email, which the board replies to
+ */
+function wireBoardForm(email) {
+  document.getElementById('board-reply-to').textContent = email;
+  document.getElementById('board-form').addEventListener('submit', sendBoardMessage);
+  document.getElementById('board-message').hidden = false;
+}
+
+/**
+ * Sends the board form, then clears it and says so (or shows why it couldn't be sent).
+ * @param {SubmitEvent} event the form's submit event
+ */
+async function sendBoardMessage(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('button[type=submit]');
+  const status = document.getElementById('board-status');
+  const fields = form.elements;
+  button.disabled = true;
+  status.hidden = true;
+  try {
+    await api('/api/messages', { method: 'POST', body: { subject: fields.namedItem('subject').value, message: fields.namedItem('message').value } });
+    form.reset();
+    status.className = 'sent';
+    status.textContent = 'Sent. The board will reply by email.';
+  } catch (error) {
+    status.className = 'failed';
+    status.textContent = error.message;
+  } finally {
+    status.hidden = false;
+    button.disabled = false;
+  }
 }
 
 /**

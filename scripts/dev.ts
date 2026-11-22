@@ -14,6 +14,7 @@ import { handleApiRequest, HttpError, type ApiDeps } from '../lib/portal/api';
 import { createTokenVerifier } from '../lib/portal/auth';
 import { FileSheetSource } from '../lib/portal/file-sheet';
 import { GoogleSheetSource, type GoogleSheetConfig } from '../lib/portal/google-sheet';
+import { LogBoardMailer } from '../lib/portal/mailer';
 import type { OwnerContact, SheetSource, SheetValues } from '../lib/portal/sheet';
 import { startServer, type DevCode } from './serve';
 
@@ -61,6 +62,8 @@ async function main(): Promise<void> {
       clientId: pool.clientId,
       requireVerifiedEmail: false,
     }),
+    // Locally, messages to the board are printed in this terminal, never emailed.
+    mailer: new LogBoardMailer(),
   };
   const server = startServer(SITE_PORT, {
     api: (request) => handleApiRequest(request, deps),

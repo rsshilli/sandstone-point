@@ -96,6 +96,11 @@ button[disabled] { opacity: 0.6; cursor: wait; }
 .stat .value { font-family: "Bitter", Georgia, serif; font-size: 2.1rem; font-weight: 800; letter-spacing: 0.02em; }
 .stat .value.ok { color: var(--ok); }
 .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 0.7rem; background: var(--surface); }
+/* "Message the board" */
+.board-form { display: grid; gap: 1rem; max-width: 46rem; }
+.board-form p { margin: 0; }
+.board-form .sent { color: var(--ok); font-weight: 600; }
+.board-form .failed { color: var(--accent); font-weight: 600; }
 /* "Where your lots are": aerial photo with traced lot lines; the owner's lots in sun yellow */
 .lot-map { margin: 0; }
 .lot-map svg { display: block; width: 100%; max-height: 72vh; aspect-ratio: 1; background: #24402c; border-radius: 0.7rem; box-shadow: var(--shadow); }

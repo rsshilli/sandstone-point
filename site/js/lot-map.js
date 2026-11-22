@@ -15,11 +15,7 @@ const PADDING = 140;
  * @param {typeof fetch} [fetchFn] for tests
  */
 export async function showLotMap(container, myLots, fetchFn = fetch) {
-  const response = await fetchFn('/data/lot-map.json');
-  if (!response.ok) {
-    throw new Error(`The map didn't load (${response.status}).`);
-  }
-  const map = await response.json();
+  const map = await loadMap(fetchFn);
   const { aerial } = map;
   const mine = new Set(myLots.map(String));
   const drawn = Object.keys(map.lots).sort((a, b) => Number(a) - Number(b));
@@ -32,6 +28,7 @@ export async function showLotMap(container, myLots, fetchFn = fetch) {
   svg.setAttribute('role', 'img');
   svg.setAttribute('aria-label', mineDrawn.length ? `Aerial map of Sandstone Point with lot ${mineDrawn.join(', ')} highlighted` : 'Aerial map of Sandstone Point');
   svg.setAttribute('viewBox', zoomed.join(' '));
+  svg.classList.toggle('whole', !mineDrawn.length);
   const photo = document.createElementNS(SVG, 'image');
   photo.setAttribute('href', aerial.src);
   photo.setAttribute('width', String(aerial.width));
@@ -57,6 +54,27 @@ export async function showLotMap(container, myLots, fetchFn = fetch) {
 }
 
 /**
+ * Fetches the lot shapes, turning any failure into one plain message for the owner.
+ * @param {typeof fetch} fetchFn the fetch function
+ * @returns {Promise<{aerial: any, lots: Record<string, [number, number][]>}>} the map data
+ */
+async function loadMap(fetchFn) {
+  const response = await fetchFn('/data/lot-map.json');
+  if (!response.ok) {
+    throw new Error(`The map didn’t load (${response.status}).`);
+  }
+  try {
+    const map = await response.json();
+    if (map && map.aerial && map.lots) {
+      return map;
+    }
+  } catch {
+    // fall through to the message below
+  }
+  throw new Error('The map didn’t load.');
+}
+
+/**
  * Places a latitude/longitude on the aerial photo, which is in Web Mercator (the projection
  * every web map uses), so north–south distances stretch with latitude.
  * @param {number} lat latitude
@@ -65,14 +83,13 @@ export async function showLotMap(container, myLots, fetchFn = fetch) {
  * @returns {[number, number]} photo pixels [x, y]
  */
 export function projectToImage(lat, lon, aerial) {
-  const mercator = (value) => Math.log(Math.tan(Math.PI / 4 + (value * Math.PI) / 360));
   const x = ((lon - aerial.west) / (aerial.east - aerial.west)) * aerial.width;
-  const y = ((mercator(aerial.north) - mercator(lat)) / (mercator(aerial.north) - mercator(aerial.south))) * aerial.height;
+  const y = ((mercatorY(aerial.north) - mercatorY(lat)) / (mercatorY(aerial.north) - mercatorY(aerial.south))) * aerial.height;
   return [round1(x), round1(y)];
 }
 
 /**
- * The square-ish part of the photo to show: the lots' outline plus some street around it.
+ * The square part of the photo to show: the lots' outline plus some street around it.
  * @param {[number, number][][]} rings the lots, in photo pixels
  * @param {{width:number,height:number}} aerial the photo's size
  * @returns {number[]} an SVG viewBox: x, y, width, height
@@ -81,34 +98,14 @@ export function viewBoxFor(rings, aerial) {
   const points = rings.flat();
   const xs = points.map((p) => p[0]);
   const ys = points.map((p) => p[1]);
-  const size = Math.max(MIN_VIEW, Math.max(...xs) - Math.min(...xs) + 2 * PADDING, Math.max(...ys) - Math.min(...ys) + 2 * PADDING);
-  const width = Math.min(size, aerial.width);
-  const height = Math.min(size, aerial.height);
+  const wanted = Math.max(MIN_VIEW, Math.max(...xs) - Math.min(...xs) + 2 * PADDING, Math.max(...ys) - Math.min(...ys) + 2 * PADDING);
+  // Square, to match the map's square frame, and never bigger than the photo's short side.
+  const size = Math.min(wanted, aerial.width, aerial.height);
   const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
   const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
-  const x = clamp(cx - width / 2, 0, aerial.width - width);
-  const y = clamp(cy - height / 2, 0, aerial.height - height);
-  return [Math.round(x), Math.round(y), Math.round(width), Math.round(height)];
-}
-
-/**
- * The words under the map: which of the owner's lots aren't drawn yet, and where it came from.
- * @param {string[]} myLots the owner's lot numbers
- * @param {string[]} drawn every lot on the map
- * @param {string} credit the photo credit
- * @returns {string} the caption
- */
-export function captionText(myLots, drawn, credit) {
-  const onMap = new Set(drawn);
-  const missing = myLots.filter((lot) => !onMap.has(lot));
-  const parts = [];
-  if (myLots.length && missing.length === myLots.length) {
-    parts.push(`Your ${missing.length > 1 ? 'lots aren’t' : 'lot isn’t'} on the map yet; we’re still tracing the plat.`);
-  } else if (missing.length) {
-    parts.push(`Lot ${missing.join(', ')} isn’t on the map yet; we’re still tracing the plat.`);
-  }
-  parts.push(`Lot lines are traced from the recorded plat and are approximate, not a survey. ${credit}.`);
-  return parts.join(' ');
+  const x = clamp(cx - size / 2, 0, aerial.width - size);
+  const y = clamp(cy - size / 2, 0, aerial.height - size);
+  return [Math.round(x), Math.round(y), Math.round(size), Math.round(size)];
 }
 
 /**
@@ -136,6 +133,26 @@ function lotShape(lot, ring, isMine) {
 }
 
 /**
+ * The words under the map: which of the owner's lots aren't drawn yet, and where it came from.
+ * @param {string[]} myLots the owner's lot numbers
+ * @param {string[]} drawn every lot on the map
+ * @param {string} credit the photo credit
+ * @returns {string} the caption
+ */
+export function captionText(myLots, drawn, credit) {
+  const onMap = new Set(drawn);
+  const missing = myLots.filter((lot) => !onMap.has(lot));
+  const parts = [];
+  if (myLots.length && missing.length === myLots.length) {
+    parts.push(`Your ${missing.length > 1 ? 'lots aren’t' : 'lot isn’t'} on the map yet; we’re still tracing the plat.`);
+  } else if (missing.length) {
+    parts.push(`Lot ${missing.join(', ')} isn’t on the map yet; we’re still tracing the plat.`);
+  }
+  parts.push(`Lot lines are traced from the recorded plat and are approximate, not a survey. ${credit}.`);
+  return parts.join(' ');
+}
+
+/**
  * A button that switches between the owner's lots and the whole neighborhood.
  * @param {SVGSVGElement} svg the map
  * @param {number[]} zoomed the viewBox around the owner's lots
@@ -157,14 +174,21 @@ function zoomButton(svg, zoomed, whole) {
 }
 
 /**
- * The average of a ring's corners, close enough to the middle for a label.
- * @param {[number, number][]} ring corners
- * @returns {[number, number]} the middle
+ * Web Mercator's north–south coordinate for a latitude (unscaled).
+ * @param {number} lat latitude in degrees
+ * @returns {number} the projected value
  */
-function centroid(ring) {
-  const x = ring.reduce((sum, p) => sum + p[0], 0) / ring.length;
-  const y = ring.reduce((sum, p) => sum + p[1], 0) / ring.length;
-  return [round1(x), round1(y)];
+function mercatorY(lat) {
+  return Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+}
+
+/**
+ * Rounds to one decimal place, which is plenty for photo pixels.
+ * @param {number} value the number
+ * @returns {number} the rounded number
+ */
+function round1(value) {
+  return Math.round(value * 10) / 10;
 }
 
 /**
@@ -179,10 +203,12 @@ function clamp(value, low, high) {
 }
 
 /**
- * Rounds to one decimal place, which is plenty for photo pixels.
- * @param {number} value the number
- * @returns {number} the rounded number
+ * The average of a ring's corners, close enough to the middle for a label.
+ * @param {[number, number][]} ring corners
+ * @returns {[number, number]} the middle
  */
-function round1(value) {
-  return Math.round(value * 10) / 10;
+function centroid(ring) {
+  const x = ring.reduce((sum, p) => sum + p[0], 0) / ring.length;
+  const y = ring.reduce((sum, p) => sum + p[1], 0) / ring.length;
+  return [round1(x), round1(y)];
 }

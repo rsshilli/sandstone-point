@@ -2,6 +2,7 @@ import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-sec
 import { handleApiRequest, type ApiDeps } from './api';
 import { createTokenVerifier } from './auth';
 import { GoogleSheetSource, type GoogleSheetConfig } from './google-sheet';
+import { SesBoardMailer } from './mailer';
 import type { NewSignupRequest, OwnerContact, SheetSource, SheetValues } from './sheet';
 
 /** The parts of an API Gateway HTTP API (payload 2.0) event we use. */
@@ -28,6 +29,7 @@ let depsPromise: Promise<ApiDeps> | undefined;
 /**
  * Lambda entry point for /api/*. Environment: USER_POOL_ID, CLIENT_ID, AWS_REGION and
  * GOOGLE_SECRET_ID (a Secrets Manager secret holding `{spreadsheetId, client_email, private_key}`).
+ * Optional BOARD_EMAIL_FROM and BOARD_EMAIL_TO switch on owners' messages to the board (via SES).
  * @param event the HTTP API event
  * @returns the HTTP response
  */
@@ -60,6 +62,8 @@ async function buildDeps(): Promise<ApiDeps> {
   const secrets = new SecretsManagerClient({ region });
   const secret = await secrets.send(new GetSecretValueCommand({ SecretId: requireEnv('GOOGLE_SECRET_ID') }));
   const config = JSON.parse(secret.SecretString ?? '{}') as GoogleSheetConfig;
+  const boardFrom = process.env.BOARD_EMAIL_FROM;
+  const boardTo = process.env.BOARD_EMAIL_TO;
   return {
     source: new CachedSheetSource(new GoogleSheetSource(config), READ_CACHE_MS),
     verifier: createTokenVerifier({
@@ -67,6 +71,8 @@ async function buildDeps(): Promise<ApiDeps> {
       clientId: requireEnv('CLIENT_ID'),
       requireVerifiedEmail: true,
     }),
+    // Only set once the HOA domain is in the stack (SES sends from it); until then the form is hidden.
+    mailer: boardFrom && boardTo ? new SesBoardMailer({ from: boardFrom, to: boardTo, region }) : undefined,
   };
 }
 

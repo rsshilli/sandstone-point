@@ -15,6 +15,7 @@ import * as logs from 'aws-cdk-lib/aws-logs';
 import * as apigw from 'aws-cdk-lib/aws-apigatewayv2';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
+import * as ses from 'aws-cdk-lib/aws-ses';
 
 /**
  * Secrets Manager secret holding `{spreadsheetId, client_email, private_key}` for the owner
@@ -22,6 +23,9 @@ import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
  * so the key never passes through CloudFormation.
  */
 export const GOOGLE_SECRET_NAME = 'sandstone-point/google-sheets';
+
+/** The board's Google Group: owners' messages from the owner page are emailed here. */
+export const BOARD_EMAIL = 'sandstone-point-hoa@googlegroups.com';
 
 /** The owner-login pieces the distribution and the upload need. */
 interface Portal {
@@ -37,6 +41,12 @@ export interface SiteStackProps extends cdk.StackProps {
    * When omitted the site is served only on CloudFront's `*.cloudfront.net` address.
    */
   domainName?: string;
+  /**
+   * Turns on "Message the board" (needs the domain). Leave off until SES can actually deliver to
+   * the Google Group — production access granted, or the group address verified — and the group
+   * accepts posts from the website's address; until then the form would only fail.
+   */
+  boardMessages?: boolean;
 }
 
 /**
@@ -60,7 +70,8 @@ export class SiteStack extends cdk.Stack {
 
     const bucket = this.createBucket();
     const domain = props.domainName ? this.createDomain(props.domainName) : undefined;
-    const portal = this.createPortal();
+    const mail = domain && props.domainName ? { zone: domain.zone, domainName: props.domainName, send: Boolean(props.boardMessages) } : undefined;
+    const portal = this.createPortal(mail);
     this.distribution = this.createDistribution(bucket, portal.api, domain);
     if (domain) {
       this.createDnsRecords(domain.zone, this.distribution);
@@ -107,10 +118,13 @@ export class SiteStack extends cdk.Stack {
   /**
    * Creates the owner login: a Cognito user pool where anyone can make an account with a
    * verified email, the web app client the login page uses, and the `/api/*` Lambda (behind an
-   * HTTP API) that checks the sign-in and reads the owner records sheet.
+   * HTTP API) that checks the sign-in and reads the owner records sheet. With the HOA domain, it
+   * sets the domain up for sending email, and (when switched on) lets the Lambda email owners'
+   * messages to the board from it.
+   * @param mail the domain, its zone and whether board messages are on, when the site has a domain
    * @returns the pool, its client and the API
    */
-  private createPortal(): Portal {
+  private createPortal(mail?: { zone: route53.IHostedZone; domainName: string; send: boolean }): Portal {
     const userPool = new cognito.UserPool(this, 'OwnerPool', {
       userPoolName: 'sandstone-point-owners',
       selfSignUpEnabled: true,
@@ -152,14 +166,22 @@ export class SiteStack extends cdk.Stack {
       bundling: { minify: true, sourceMap: true, target: 'node22' },
     });
     secret.grantRead(handler);
+    if (mail) {
+      this.enableBoardMessages(handler, mail);
+    }
 
+    const integration = new HttpLambdaIntegration('PortalIntegration', handler);
     const api = new apigw.HttpApi(this, 'PortalHttpApi', {
       description: 'Sandstone Point owner portal API (reached through CloudFront at /api/*)',
-      defaultIntegration: new HttpLambdaIntegration('PortalIntegration', handler),
+      defaultIntegration: integration,
     });
+    // Its own route so it can have its own, much lower limit: each call sends an email, and the
+    // per-owner count in the Lambda resets whenever AWS starts a fresh copy of it.
+    api.addRoutes({ path: '/api/messages', methods: [apigw.HttpMethod.POST], integration });
     // Slow down anyone hammering the API; a neighbourhood needs a handful of requests a second.
     const stage = api.defaultStage?.node.defaultChild as apigw.CfnStage;
     stage.defaultRouteSettings = { throttlingRateLimit: 20, throttlingBurstLimit: 40 };
+    stage.routeSettings = { 'POST /api/messages': { throttlingRateLimit: 1, throttlingBurstLimit: 5 } };
     return { userPool, client, api };
   }
 
@@ -240,5 +262,24 @@ export class SiteStack extends cdk.Stack {
       distribution,
       distributionPaths: ['/*'],
     });
+  }
+
+  /**
+   * Sets the HOA domain up for sending email through SES (the DKIM records go into its Route 53
+   * zone automatically, so it verifies itself), and, when board messages are switched on, lets
+   * the portal Lambda email owners' messages to the board's Google Group from it, with the owner
+   * as Reply-To. The identity exists even while messages are off, so the domain is verified and
+   * SES production access can be requested before the form goes live.
+   * @param handler the portal Lambda
+   * @param mail the domain, its zone and whether board messages are on
+   */
+  private enableBoardMessages(handler: lambda.Function, mail: { zone: route53.IHostedZone; domainName: string; send: boolean }): void {
+    const identity = new ses.EmailIdentity(this, 'MailDomain', { identity: ses.Identity.publicHostedZone(mail.zone) });
+    if (!mail.send) {
+      return;
+    }
+    identity.grantSendEmail(handler);
+    handler.addEnvironment('BOARD_EMAIL_FROM', `Sandstone Point website <website@${mail.domainName}>`);
+    handler.addEnvironment('BOARD_EMAIL_TO', BOARD_EMAIL);
   }
 }

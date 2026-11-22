@@ -131,23 +131,25 @@ function main(): void {
  * @returns the lots as [lat, lon] rings, and a readable check of the fit
  */
 export function placePiece(piece: PlatPiece): { lots: Record<string, [number, number][]>; report: string } {
-  const { rotation, feetPerPx, spread } = fitScaleAndRotation(piece);
+  const { rotation, feetPerPx, spread, scaleSpread } = fitScaleAndRotation(piece);
   const lat0 = piece.controls[0].lat;
   const lon0 = piece.controls[0].lon;
-  const toMetres = (p: Px): [number, number] => platToMetres(p, rotation, feetPerPx);
   const offsets = piece.controls.map((c) => {
-    const [e, n] = toMetres(c.plat);
+    const [e, n] = platToMetres(c.plat, rotation, feetPerPx);
     const [ce, cn] = latLonToMetres(c.lat, c.lon, lat0, lon0);
     return [ce - e, cn - n];
   });
   const offE = offsets.reduce((s, o) => s + o[0], 0) / offsets.length;
   const offN = offsets.reduce((s, o) => s + o[1], 0) / offsets.length;
   const misfit = Math.max(...offsets.map((o) => Math.hypot(o[0] - offE, o[1] - offN)));
-  const lines = [`${piece.name}: rotation ${rotation.toFixed(1)}°, ${feetPerPx.toFixed(4)} ft/px, bearings agree within ${spread.toFixed(1)}°, control points agree within ${misfit.toFixed(1)} m`];
+  const lines = [
+    `${piece.name}: rotation ${rotation.toFixed(1)}°, ${feetPerPx.toFixed(4)} ft/px, bearings agree within ${spread.toFixed(1)}°, ` +
+      `lengths agree within ${(scaleSpread * 100).toFixed(1)}%, control points agree within ${misfit.toFixed(1)} m`,
+  ];
   const lots: Record<string, [number, number][]> = {};
   for (const [lot, { acres, corners }] of Object.entries(piece.lots)) {
     const metres = corners.map((p) => {
-      const [e, n] = toMetres(p);
+      const [e, n] = platToMetres(p, rotation, feetPerPx);
       return [e + offE, n + offN] as [number, number];
     });
     const traced = (ringArea(metres) * FEET_PER_METRE ** 2) / SQ_FEET_PER_ACRE;
@@ -161,9 +163,10 @@ export function placePiece(piece: PlatPiece): { lots: Record<string, [number, nu
  * Finds the rotation (true bearing = photo angle + rotation) and scale that make the labelled
  * lines match their printed bearings and lengths.
  * @param piece the plat photo's tracing
- * @returns rotation in degrees, feet per photo pixel, and how far the lines disagree on rotation
+ * @returns rotation in degrees, feet per photo pixel, how far the lines disagree on rotation
+ *   (degrees), and how far any line's scale is from the average (a fraction)
  */
-function fitScaleAndRotation(piece: PlatPiece): { rotation: number; feetPerPx: number; spread: number } {
+function fitScaleAndRotation(piece: PlatPiece): { rotation: number; feetPerPx: number; spread: number; scaleSpread: number } {
   const rotations = piece.lines.map((line) => {
     const raw = normalise(parseBearing(line.bearing) - photoAngle(line.from, line.to));
     // A printed bearing doesn't say which end it starts from, so the rotation is only known up
@@ -173,35 +176,9 @@ function fitScaleAndRotation(piece: PlatPiece): { rotation: number; feetPerPx: n
   const rotation = circularMean(rotations);
   const spread = Math.max(...rotations.map((r) => Math.abs(angleGap(r, rotation))));
   const scales = piece.lines.map((line) => line.feet / Math.hypot(line.to[0] - line.from[0], line.to[1] - line.from[1]));
-  return { rotation, feetPerPx: scales.reduce((s, v) => s + v, 0) / scales.length, spread };
-}
-
-/**
- * Reads a surveyor's bearing like "N 05 16 49 W" as degrees clockwise from north.
- * @param text the bearing as printed
- * @returns degrees clockwise from north, 0–360
- */
-export function parseBearing(text: string): number {
-  const match = /^([NS])\s*(\d+)\s+(\d+)\s+(\d+)\s*([EW])$/.exec(text.trim());
-  if (!match) {
-    throw new Error(`Can't read bearing "${text}"`);
-  }
-  const angle = Number(match[2]) + Number(match[3]) / 60 + Number(match[4]) / 3600;
-  const [ns, ew] = [match[1], match[5]];
-  if (ns === 'N') {
-    return normalise(ew === 'E' ? angle : -angle);
-  }
-  return normalise(ew === 'E' ? 180 - angle : 180 + angle);
-}
-
-/**
- * Angle of the line from a to b on the photo, clockwise from straight up.
- * @param a start point
- * @param b end point
- * @returns degrees, 0–360
- */
-function photoAngle(a: Px, b: Px): number {
-  return normalise((Math.atan2(b[0] - a[0], -(b[1] - a[1])) * 180) / Math.PI);
+  const feetPerPx = scales.reduce((s, v) => s + v, 0) / scales.length;
+  const scaleSpread = Math.max(...scales.map((s) => Math.abs(s / feetPerPx - 1)));
+  return { rotation, feetPerPx, spread, scaleSpread };
 }
 
 /**
@@ -238,19 +215,7 @@ function latLonToMetres(lat: number, lon: number, lat0: number, lon0: number): [
  * @returns [lat, lon]
  */
 function metresToLatLon(east: number, north: number, lat0: number, lon0: number): [number, number] {
-  const round = (v: number) => Math.round(v * 1e7) / 1e7;
-  return [round(lat0 + north / METRES_PER_DEGREE_LAT), round(lon0 + east / metresPerDegreeLon(lat0))];
-}
-
-const METRES_PER_DEGREE_LAT = 110_986;
-
-/**
- * Metres per degree of longitude at a latitude.
- * @param lat latitude in degrees
- * @returns metres
- */
-function metresPerDegreeLon(lat: number): number {
-  return 111_320 * Math.cos((lat * Math.PI) / 180);
+  return [roundDegrees(lat0 + north / METRES_PER_DEGREE_LAT), roundDegrees(lon0 + east / metresPerDegreeLon(lat0))];
 }
 
 /**
@@ -266,6 +231,34 @@ export function ringArea(ring: [number, number][]): number {
     twice += x1 * y2 - x2 * y1;
   }
   return Math.abs(twice) / 2;
+}
+
+/**
+ * Reads a surveyor's bearing like "N 05 16 49 W" as degrees clockwise from north.
+ * @param text the bearing as printed
+ * @returns degrees clockwise from north, 0–360
+ */
+export function parseBearing(text: string): number {
+  const match = /^([NS])\s*(\d+)\s+(\d+)\s+(\d+)\s*([EW])$/.exec(text.trim());
+  if (!match) {
+    throw new Error(`Can't read bearing "${text}"`);
+  }
+  const angle = Number(match[2]) + Number(match[3]) / 60 + Number(match[4]) / 3600;
+  const [ns, ew] = [match[1], match[5]];
+  if (ns === 'N') {
+    return normalise(ew === 'E' ? angle : -angle);
+  }
+  return normalise(ew === 'E' ? 180 - angle : 180 + angle);
+}
+
+/**
+ * Angle of the line from a to b on the photo, clockwise from straight up.
+ * @param a start point
+ * @param b end point
+ * @returns degrees, 0–360
+ */
+function photoAngle(a: Px, b: Px): number {
+  return normalise((Math.atan2(b[0] - a[0], -(b[1] - a[1])) * 180) / Math.PI);
 }
 
 /**
@@ -296,6 +289,26 @@ function angleGap(a: number, b: number): number {
  */
 function normalise(a: number): number {
   return ((a % 360) + 360) % 360;
+}
+
+const METRES_PER_DEGREE_LAT = 110_986;
+
+/**
+ * Metres per degree of longitude at a latitude.
+ * @param lat latitude in degrees
+ * @returns metres
+ */
+function metresPerDegreeLon(lat: number): number {
+  return 111_320 * Math.cos((lat * Math.PI) / 180);
+}
+
+/**
+ * Rounds degrees to 7 decimal places (about 1 cm).
+ * @param value degrees
+ * @returns the rounded degrees
+ */
+function roundDegrees(value: number): number {
+  return Math.round(value * 1e7) / 1e7;
 }
 
 if (require.main === module) {

@@ -3,7 +3,8 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair, type JWK } from 'jose';
-import { handleApiRequest, type ApiDeps } from '../lib/portal/api';
+import { handleApiRequest, SendLimiter, type ApiDeps } from '../lib/portal/api';
+import { SesBoardMailer, type BoardMessage } from '../lib/portal/mailer';
 import { createTokenVerifier } from '../lib/portal/auth';
 import { FileSheetSource } from '../lib/portal/file-sheet';
 import { parseSheet, type SheetValues } from '../lib/portal/sheet';
@@ -289,6 +290,65 @@ describe('portal API', () => {
     expect((await call('GET', '/api/nope', 'owner@example.com')).status).toBe(404);
     const bad = await handleApiRequest({ method: 'POST', path: '/api/requests', authorization: await bearer('x@example.com'), body: '{oops' }, deps);
     expect(bad.status).toBe(400);
+  });
+
+  it('should email an owner’s message to the board with Reply-To set to the owner', async () => {
+    const sent: BoardMessage[] = [];
+    deps.mailer = { send: async (message) => void sent.push(message) };
+    deps.messageLimiter = new SendLimiter();
+    expect((await call('GET', '/api/me', 'owner@example.com')).body.canMessageBoard).toBe(true);
+    const response = await call('POST', '/api/messages', 'owner@example.com', { subject: 'Gate\r\nBcc: x@evil.test', message: 'The gate is stuck.\nThanks!' });
+    expect(response).toEqual({ status: 202, body: { ok: true } });
+    expect(sent).toHaveLength(1);
+    expect(sent[0].replyTo).toBe('owner@example.com');
+    expect(sent[0].subject).toBe('Owner message: Gate Bcc: x@evil.test (from Pat Owner)');
+    expect(sent[0].text).toContain('The gate is stuck.\nThanks!');
+    expect(sent[0].text).toContain('From: Pat Owner (owner@example.com)');
+    expect(sent[0].text).toContain('Lots: 2, 3');
+  });
+
+  it('should refuse board messages from non-owners, empty messages, and anyone sending too often', async () => {
+    const sent: BoardMessage[] = [];
+    deps.mailer = { send: async (message) => void sent.push(message) };
+    deps.messageLimiter = new SendLimiter(2, 60_000);
+    expect((await call('POST', '/api/messages', 'newcomer@example.com', { message: 'Hi' })).status).toBe(403);
+    expect((await call('POST', '/api/messages', 'former@example.com', { message: 'Hi' })).status).toBe(403);
+    expect(await call('POST', '/api/messages', 'owner@example.com', { message: '   ' })).toEqual({ status: 400, body: { error: 'Message is required.' } });
+    expect((await call('POST', '/api/messages', 'owner@example.com', { message: 'x'.repeat(4001) })).status).toBe(400);
+    expect((await call('POST', '/api/messages', 'owner@example.com', { message: 'one' })).status).toBe(202);
+    expect((await call('POST', '/api/messages', 'owner@example.com', { message: 'two' })).status).toBe(202);
+    expect((await call('POST', '/api/messages', 'owner@example.com', { message: 'three' })).status).toBe(429);
+    expect(sent.map((message) => message.text.split('\n')[0])).toEqual(['one', 'two']);
+  });
+
+  it('should hide the board form and refuse messages when no mailer is set up', async () => {
+    expect((await call('GET', '/api/me', 'owner@example.com')).body.canMessageBoard).toBe(false);
+    expect((await call('POST', '/api/messages', 'owner@example.com', { message: 'Hi' })).status).toBe(503);
+  });
+});
+
+describe('SendLimiter', () => {
+  it('should allow a few sends per window and forget them once the window passes', () => {
+    const limiter = new SendLimiter(2, 1000);
+    expect(limiter.tryUse('a', 0)).toBe(true);
+    expect(limiter.tryUse('a', 10)).toBe(true);
+    expect(limiter.tryUse('a', 20)).toBe(false);
+    expect(limiter.tryUse('b', 20)).toBe(true);
+    expect(limiter.tryUse('a', 1001)).toBe(true);
+  });
+});
+
+describe('SesBoardMailer', () => {
+  it('should send plain text from the HOA address to the list, with Reply-To set to the owner', async () => {
+    const commands: any[] = [];
+    const mailer = new SesBoardMailer({ from: 'Site <web@example.org>', to: 'board@example.org', region: 'us-east-1' }, { send: async (command: any) => commands.push(command) } as any);
+    await mailer.send({ subject: 'S', text: 'T', replyTo: 'owner@example.com' });
+    expect(commands[0].input).toEqual({
+      FromEmailAddress: 'Site <web@example.org>',
+      Destination: { ToAddresses: ['board@example.org'] },
+      ReplyToAddresses: ['owner@example.com'],
+      Content: { Simple: { Subject: { Data: 'S', Charset: 'UTF-8' }, Body: { Text: { Data: 'T', Charset: 'UTF-8' } } } },
+    });
   });
 });
 

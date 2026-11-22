@@ -72,6 +72,17 @@
           </table>
         </div>
         <p class="muted" style="margin-top:1rem">Something look wrong? Tell a board member and they&rsquo;ll fix the records.</p>
+
+        <section id="board-message" hidden>
+          <h2>Message the board</h2>
+          <form id="board-form" class="card board-form">
+            <p class="muted">This goes to the board by email. They&rsquo;ll reply to <strong id="board-reply-to"></strong>.</p>
+            <label>Subject <small>Optional</small><input name="subject" maxlength="120" autocomplete="off" /></label>
+            <label>Message<textarea name="message" rows="6" maxlength="4000" required></textarea></label>
+            <div class="actions"><button type="submit">Send to the board</button></div>
+            <p id="board-status" role="status" hidden></p>
+          </form>
+        </section>
       </div>
 
       <!-- Admins only -->

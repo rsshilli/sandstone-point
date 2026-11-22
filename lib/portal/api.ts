@@ -1,5 +1,6 @@
 import { readSheet, type LedgerEntry, type Lot, type Owner, type OwnerContact, type SheetData, type SheetSource, type SignupRequest } from './sheet';
 import { AuthError, type Identity, type TokenVerifier } from './auth';
+import type { BoardMailer } from './mailer';
 
 /** An HTTP request, reduced to what the portal API needs (same shape locally and in Lambda). */
 export interface ApiRequest {
@@ -22,12 +23,67 @@ export interface ApiResponse {
 export interface ApiDeps {
   source: SheetSource;
   verifier: TokenVerifier;
+  /** Sends owners' messages to the board. Without one, the "Message the board" form is hidden. */
+  mailer?: BoardMailer;
+  /** Limits how often one person can message the board (a shared default when left out). */
+  messageLimiter?: SendLimiter;
   /** Clock, injectable for tests. */
   now?: () => Date;
 }
 
+/**
+ * Remembers recent sends per email and refuses more than `max` in `windowMs`. Kept in memory,
+ * so in AWS each warm Lambda counts separately: a brake on accidents and pests, not a guarantee.
+ */
+export class SendLimiter {
+  private readonly sent = new Map<string, number[]>();
+
+  /**
+   * @param max messages allowed per window
+   * @param windowMs the window, in milliseconds
+   */
+  constructor(
+    private readonly max = 5,
+    private readonly windowMs = 60 * 60 * 1000,
+  ) {}
+
+  /**
+   * Counts a send if it's allowed.
+   * @param key who is sending (their email)
+   * @param nowMs the current time in milliseconds
+   * @returns false when they've hit the limit (nothing is counted then)
+   */
+  tryUse(key: string, nowMs: number): boolean {
+    const recent = (this.sent.get(key) ?? []).filter((time) => nowMs - time < this.windowMs);
+    if (recent.length >= this.max) {
+      this.sent.set(key, recent);
+      return false;
+    }
+    this.sent.set(key, [...recent, nowMs]);
+    return true;
+  }
+
+  /**
+   * Gives back a send that was counted but never went out (the email failed), so an owner isn't
+   * charged for our error.
+   * @param key who was sending (their email)
+   * @param nowMs the time {@link tryUse} was called with
+   */
+  refund(key: string, nowMs: number): void {
+    const times = this.sent.get(key) ?? [];
+    const index = times.lastIndexOf(nowMs);
+    if (index >= 0) {
+      times.splice(index, 1);
+    }
+  }
+}
+
+const sharedLimiter = new SendLimiter();
+
 /** Longest text accepted in a sign-up request field. */
 const MAX_FIELD = 120;
+/** Longest message to the board accepted (a long email's worth). */
+const MAX_MESSAGE = 4000;
 /** Longest mailing address accepted (several lines). */
 const MAX_ADDRESS = 300;
 /** Longest email list accepted (a few addresses). */
@@ -59,8 +115,9 @@ export class HttpError extends Error {
  * - POST /api/admin/requests/reject   admins: turn a request down
  * - GET  /api/admin/owners            admins: every owner record with its contact details
  * - POST /api/admin/owners/contact    admins: change an owner's email(s), phone and mailing address
+ * - POST /api/messages                owners: email a message to the board's mailing list
  * @param request the incoming call
- * @param deps the sheet, the token checker and the clock
+ * @param deps the sheet, the token checker, the board mailer and the clock
  * @returns the response to send
  */
 export async function handleApiRequest(request: ApiRequest, deps: ApiDeps): Promise<ApiResponse> {
@@ -70,7 +127,7 @@ export async function handleApiRequest(request: ApiRequest, deps: ApiDeps): Prom
     const now = deps.now ? deps.now() : new Date();
     switch (route) {
       case 'GET /api/me':
-        return { status: 200, body: describeMe(identity, await readSheet(deps.source)) };
+        return { status: 200, body: describeMe(identity, await readSheet(deps.source), Boolean(deps.mailer)) };
       case 'POST /api/requests':
         return await submitRequest(identity, parseBody(request.body), deps.source, now);
       case 'GET /api/admin/requests':
@@ -83,6 +140,8 @@ export async function handleApiRequest(request: ApiRequest, deps: ApiDeps): Prom
         return { status: 200, body: listOwnerContacts(requireAdmin(identity, await readSheet(deps.source))) };
       case 'POST /api/admin/owners/contact':
         return await saveOwnerContact(identity, parseBody(request.body), deps.source);
+      case 'POST /api/messages':
+        return await sendBoardMessage(identity, parseBody(request.body), deps, now);
       default:
         return { status: 404, body: { error: 'No such page.' } };
     }
@@ -103,9 +162,10 @@ export async function handleApiRequest(request: ApiRequest, deps: ApiDeps): Prom
  * ledger; an admin also gets every lot. Anyone else gets the status of their sign-up request.
  * @param identity the signed-in person
  * @param data the sheet
+ * @param canMessageBoard whether the "Message the board" form works (a mailer is set up)
  * @returns the view
  */
-export function describeMe(identity: Identity, data: SheetData): unknown {
+export function describeMe(identity: Identity, data: SheetData, canMessageBoard = false): unknown {
   // One person can be on several records (their own name, plus an LLC or a trust).
   const records = data.owners.filter((owner) => owner.active && owner.emails.includes(identity.email));
   if (records.length === 0) {
@@ -131,6 +191,7 @@ export function describeMe(identity: Identity, data: SheetData): unknown {
     totalOwed: roundCents(lots.reduce((sum, lot) => sum + lot.balance, 0)),
     ledger: data.ledger.filter((entry) => lotNumbers.has(entry.lot)).map(describeEntry),
     allLots: isAdmin ? data.lots.map((lot) => describeLotForAdmin(lot, data)) : undefined,
+    canMessageBoard,
   };
 }
 
@@ -344,6 +405,76 @@ function parseEmailList(textValue: string): string[] {
     throw new HttpError(400, `"${bad}" doesn't look like an email address.`);
   }
   return emails;
+}
+
+/**
+ * Emails an owner's message to the board's mailing list, with Reply-To set to the owner so a
+ * board member can answer straight from their inbox. Only active owners may send, and only a
+ * few times an hour.
+ * @param identity the signed-in person (their verified email becomes Reply-To)
+ * @param body the parsed request body: subject (optional) and message
+ * @param deps the sheet, the mailer and the limiter
+ * @param now the current time
+ * @returns 202 once handed to the mailer
+ */
+async function sendBoardMessage(identity: Identity, body: Record<string, unknown>, deps: ApiDeps, now: Date): Promise<ApiResponse> {
+  if (!deps.mailer) {
+    throw new HttpError(503, 'Messages to the board can’t be sent from the website yet.');
+  }
+  const data = await readSheet(deps.source);
+  const records = data.owners.filter((owner) => owner.active && owner.emails.includes(identity.email));
+  if (records.length === 0) {
+    throw new HttpError(403, 'Only owners on the owner list can message the board from here.');
+  }
+  const subject = oneLine(field(body.subject, 'Subject', false));
+  const message = field(body.message, 'Message', true, MAX_MESSAGE);
+  const limiter = deps.messageLimiter ?? sharedLimiter;
+  if (!limiter.tryUse(identity.email, now.getTime())) {
+    throw new HttpError(429, 'You’ve sent several messages in the last hour. Please wait a while before sending another.');
+  }
+  const ids = new Set(records.map((owner) => owner.id));
+  const lots = data.lots.filter((lot) => lot.ownerIds.some((id) => ids.has(id))).map((lot) => lot.lot);
+  const name = oneLine(displayName(records.find((owner) => owner.firstName || owner.lastName) ?? records[0]));
+  try {
+    await sendToBoard(deps.mailer, { subject, message, name, email: identity.email, lots });
+  } catch (error) {
+    limiter.refund(identity.email, now.getTime());
+    throw error;
+  }
+  return { status: 202, body: { ok: true } };
+}
+
+/**
+ * Emails one owner's message to the board, signed with who sent it and their lots.
+ * @param mailer the mailer
+ * @param note the owner's subject and message, and who they are
+ */
+async function sendToBoard(
+  mailer: BoardMailer,
+  note: { subject: string; message: string; name: string; email: string; lots: string[] },
+): Promise<void> {
+  const { subject, message, name, email, lots } = note;
+  await mailer.send({
+    subject: `Owner message: ${subject || 'no subject'} (from ${name})`,
+    replyTo: email,
+    text: [
+      message,
+      '',
+      '—',
+      `From: ${name} (${email})`,
+      `Lot${lots.length === 1 ? '' : 's'}: ${lots.join(', ') || 'none on record'}`,
+      'Sent from the owner page of the Sandstone Point website. Press Reply to answer them.',
+    ].join('\n'),
+  });
+}
+
+/**
+ * Squashes line breaks and tabs into single spaces (for an email subject).
+ * @param text the text
+ * @returns one line
+ */
+function oneLine(text: string): string {
+  return text.replace(/[\r\n\t]+/g, ' ').trim();
 }
 
 /**

@@ -31,6 +31,14 @@ describe('lot map data', () => {
     }
   });
 
+  it('should find every plat photo’s printed lengths agree within 5% (a mistyped length would skew the whole piece)', () => {
+    // Phone photos of paper are slightly skewed: the small lots 50–52 photo measures 2.2%.
+    for (const piece of PIECES) {
+      const match = /lengths agree within ([\d.]+)%/.exec(placePiece(piece).report);
+      expect(Number(match?.[1]), piece.name).toBeLessThan(5);
+    }
+  });
+
   it('should keep every lot inside the aerial photo', () => {
     for (const [lot, ring] of Object.entries(lotMap.lots)) {
       for (const [lat, lon] of ring) {

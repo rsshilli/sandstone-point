@@ -53,7 +53,29 @@ describe('SiteStack', () => {
     template.hasResourceProperties('AWS::CloudFront::Distribution', {
       DistributionConfig: Match.objectLike({ Aliases: ['example-hoa.org', 'www.example-hoa.org'] }),
     });
-    template.resourceCountIs('AWS::Route53::RecordSet', 4);
+    // apex + www (IPv4 and IPv6 each), plus SES's three DKIM records for the board emails
+    template.resourceCountIs('AWS::Route53::RecordSet', 7);
+  });
+
+  it('should let the API email the board from the HOA domain only when a domain is given', () => {
+    const withDomain = synth('example-hoa.org');
+    withDomain.hasResourceProperties('AWS::SES::EmailIdentity', { EmailIdentity: 'example-hoa.org' });
+    withDomain.hasResourceProperties('AWS::Lambda::Function', {
+      Environment: {
+        Variables: Match.objectLike({
+          BOARD_EMAIL_FROM: 'Sandstone Point website <website@example-hoa.org>',
+          BOARD_EMAIL_TO: 'sandstone-point-hoa@googlegroups.com',
+        }),
+      },
+    });
+    withDomain.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: { Statement: Match.arrayWith([Match.objectLike({ Action: Match.arrayWith(['ses:SendEmail']) })]) },
+    });
+    const without = synth();
+    without.resourceCountIs('AWS::SES::EmailIdentity', 0);
+    without.hasResourceProperties('AWS::Lambda::Function', {
+      Environment: { Variables: Match.objectLike({ BOARD_EMAIL_TO: Match.absent() }) },
+    });
   });
 
   it('should create an owner pool where people sign up with a verified email, kept on stack deletion', () => {
