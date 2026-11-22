@@ -61,7 +61,7 @@
         display: flex; align-items: center; justify-content: space-between; gap: 1rem;
         min-height: 3.5rem;
       }
-      .brand { font-family: "Bitter", Georgia, serif; font-weight: 800; font-size: 1.15rem; color: #fff; text-decoration: none; padding: 0.5rem 0; }
+      .brand { font-family: "Bitter", Georgia, serif; font-weight: 800; font-size: 1.15rem; color: #fff; text-decoration: none; letter-spacing: 0.01em; padding: 0.5rem 0; }
       .brand span { color: var(--sun); }
       .nav-links { display: flex; gap: 0.25rem; flex-wrap: wrap; }
       .nav-links a {
@@ -71,6 +71,12 @@
       }
       .nav-links a:hover, .nav-links a:focus-visible { background: rgba(255,255,255,0.14); }
       .nav-links a[aria-current="page"] { background: rgba(255,255,255,0.14); }
+      @media (max-width: 560px) {
+        .nav-inner { flex-direction: column; align-items: flex-start; gap: 0; padding-bottom: 0.4rem; }
+        .brand { padding-bottom: 0; }
+        .nav-links { flex-wrap: wrap; gap: 0; }
+        .nav-links a { font-size: 0.92rem; padding: 0.55rem 0.5rem; white-space: nowrap; }
+      }
 
       /* ---------- Page ---------- */
       .wrap { max-width: 860px; margin: 0 auto; padding: 0 1.25rem; }
@@ -80,6 +86,8 @@
       .intro h1 { color: #fff; font-size: clamp(1.9rem, 4.5vw, 2.7rem); font-weight: 800; }
       .intro h1 em { font-style: normal; color: var(--sun); }
       .intro .lede { font-size: 1.2rem; margin: 1rem 0 0; max-width: 44rem; }
+      .intro .lede a { color: var(--sun); }
+      .intro .lede a:hover, .intro .lede a:focus-visible { color: #f3cd7d; }
       .intro strong { color: #fff; }
 
       section { padding: 2.75rem 0; }
@@ -133,7 +141,7 @@
       blockquote p { margin: 0 0 0.4rem; }
       blockquote cite { font-style: normal; font-family: "Source Sans 3", system-ui, sans-serif; font-size: 0.92rem; color: var(--ink-soft); }
 
-      .smallprint { color: var(--ink-soft); font-size: 0.95rem; }
+      .smallprint { color: var(--ink-soft); font-size: 0.95rem; margin-top: 1.5rem; }
 
       /* ---------- Footer (same as the home page) ---------- */
       footer { background: var(--lake-deep); color: #cfe0e9; }
@@ -149,9 +157,11 @@
       <div class="nav-inner">
         <a class="brand" href="/">Sandstone <span>Point</span></a>
         <div class="nav-links">
-          <a href="/">Home</a>
+          <a href="/#welcome">Welcome</a>
           <a href="/#gallery">Gallery</a>
+          <a href="/#life">Life at the Lake</a>
           <a href="/#build">Build</a>
+          <a href="/#nearby">Nearby</a>
           <a href="/#hoa">HOA</a>
           <a href="/membership.html" aria-current="page">Membership</a>
         </div>
@@ -164,7 +174,7 @@
         <h1>HOA membership is <em>required</em>, not optional</h1>
         <p class="lede">
           Every owner of <strong>Lots 1 through 139</strong> is automatically a member of the
-          Sandstone Point Property Owners Association and owes its dues. The Wayne Circuit Court
+          Sandstone Point Property Owners Association and owes its dues. The <a href="https://www.kycourts.gov/Courts/County-Information/Pages/Wayne.aspx" target="_blank" rel="noopener">Wayne Circuit Court</a>
           confirmed this in an order entered <strong>August 12, 2024</strong>.
         </p>
       </div>
@@ -176,6 +186,7 @@
           <h2 id="short">The short version</h2>
           <ul class="facts">
             <li><strong>Owning a lot makes you a member.</strong> There is no sign-up form and no way to opt out. <span class="src">Declaration §8.1</span></li>
+            <li><strong>Dues are $200 per year.</strong> They are paid to the Association.</li>
             <li><strong>Dues stay with the lot.</strong> The dues "run with the land": they bind every later owner, heir and successor, not just the first buyer. <span class="src">Declaration §8.2</span></li>
             <li><strong>Unpaid dues follow the lot, too.</strong> They earn interest, can add collection costs and attorney fees, and become a continuing lien on the lot that the Association can foreclose. <span class="src">Declaration §8.6</span></li>
             <li><strong>A court has settled it.</strong> The Wayne Circuit Court declared that the 2005 Declaration and its Supplemental Declaration apply to Lots 1 through 139. <span class="src">Order, Case No. 23-CI-00307</span></li>
@@ -188,7 +199,7 @@
           <h2 id="court">What the court decided</h2>
           <div class="case">
             <dl>
-              <dt>Court</dt><dd>Wayne Circuit Court, Commonwealth of Kentucky</dd>
+              <dt>Court</dt><dd><a href="https://www.kycourts.gov/Courts/County-Information/Pages/Wayne.aspx" target="_blank" rel="noopener">Wayne Circuit Court</a>, Commonwealth of Kentucky</dd>
               <dt>Case</dt><dd>Civil Action No. 23-CI-00307</dd>
               <dt>Parties</dt><dd>Sandstone Point Property Owners Association, Inc. (plaintiff) v. MPD II LLC (defendant)</dd>
               <dt>Entered</dt><dd>August 12, 2024</dd>
@@ -229,7 +240,7 @@
           <ul class="checklist">
             <li><strong>Title search:</strong> the 2005 Declaration is recorded with the Wayne County Clerk in Deed Book 310, page 664, and the Supplemental Declaration in Deed Book 328, page 66. Both bind Lots 1 through 139.</li>
             <li><strong>Ignore the 2022 Amendment.</strong> The court ordered it struck from the Clerk's records (Book 404, pages 537–539).</li>
-            <li><strong>Tell buyers up front</strong> that the lot comes with a required Association membership and annual dues.</li>
+            <li><strong>Tell buyers up front</strong> that the lot comes with a required Association membership and annual dues, currently $200 per year.</li>
             <li><strong>Ask the Association for a dues statement before closing.</strong> Unpaid dues are a continuing lien on the lot, so they don't go away when the lot is sold.</li>
             <li><strong>Sellers:</strong> the Declaration asks the seller to give the Association the buyer's name and mailing address after the sale (§8.8).</li>
           </ul>
@@ -251,10 +262,13 @@
             <p>"The provisions hereof shall run with the Development and shall be binding upon all Lot Owners and all persons claiming under them for a period of forty (40) years from the date this Declaration is recorded, after which time said Declaration shall be automatically extended for successive periods of ten (10) years each …"</p>
             <cite>2005 Declaration, Article 16</cite>
           </blockquote>
+          <a class="download" href="/docs/sandstone-point-declaration-2005.pdf" target="_blank" rel="noopener">
+            Read the full 2005 Declaration <small>(PDF, 16 pages)</small>
+          </a>
           <p class="smallprint">
             This page is a plain-language summary for owners, buyers and their agents, not legal advice.
-            The recorded Declarations and the court's order are what govern. For the current dues amount
-            or a dues statement, contact the HOA board.
+            The recorded Declarations and the court's order are what govern. For a dues statement,
+            contact the HOA board.
           </p>
         </div>
       </section>

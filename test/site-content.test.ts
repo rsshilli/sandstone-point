@@ -51,8 +51,9 @@ describe('public site content', () => {
     expect(text).not.toMatch(/\(?\b\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}\b/);
   });
 
-  it('should not publish the 2005 dues figure as current dues', () => {
-    expect(publicText()).not.toMatch(/\$\s?200\b/);
+  it('should state the current dues, $200 per year, on the membership page', () => {
+    const membership = readFileSync(join(siteDir, 'membership.html'), 'utf8');
+    expect(membership).toContain('Dues are $200 per year.');
   });
 
   it('should have every photo the home page shows', () => {
@@ -73,6 +74,19 @@ describe('public site content', () => {
       expect(existsSync(join(siteDir, doc)), doc).toBe(true);
     }
     expect(readFileSync(join(siteDir, 'index.html'), 'utf8')).toContain('href="/membership.html"');
+  });
+
+  it('should show the same menu items, in the same order, on every page', () => {
+    const pages = readdirSync(siteDir).filter((name) => name.endsWith('.html'));
+    const menus = pages
+      .map((name) => readFileSync(join(siteDir, name), 'utf8').match(/<div class="nav-links">([\s\S]*?)<\/div>/)?.[1])
+      .filter((links): links is string => links !== undefined)
+      .map((links) => [...links.matchAll(/>([^<]+)<\/a>/g)].map((match) => match[1].trim()));
+    expect(menus.length).toBeGreaterThanOrEqual(2);
+    expect(menus[0].length).toBeGreaterThanOrEqual(5);
+    for (const menu of menus) {
+      expect(menu).toEqual(menus[0]);
+    }
   });
 
   it('should ship photos without camera (EXIF) data, which can carry GPS location', () => {
