@@ -14,7 +14,7 @@ import { handleApiRequest, HttpError, type ApiDeps } from '../lib/portal/api';
 import { createTokenVerifier } from '../lib/portal/auth';
 import { FileSheetSource } from '../lib/portal/file-sheet';
 import { GoogleSheetSource, type GoogleSheetConfig } from '../lib/portal/google-sheet';
-import type { SheetSource, SheetValues } from '../lib/portal/sheet';
+import type { OwnerContact, SheetSource, SheetValues } from '../lib/portal/sheet';
 import { startServer, type DevCode } from './serve';
 
 const ROOT = resolve(__dirname, '..');
@@ -76,7 +76,7 @@ async function main(): Promise<void> {
   });
   server.on('listening', () => {
     console.log(`\nSandstone Point with owner login: http://localhost:${SITE_PORT}/login.html`);
-    console.log(`Data: ${real ? 'the REAL owners sheet, read-only (--fake for made-up data)' : 'fake data (.local/sheet.json; delete it to reset)'}`);
+    console.log(`Data: ${real ? 'the REAL owners sheet; only owner contact saves write to it (--fake for made-up data)' : 'fake data (.local/sheet.json; delete it to reset)'}`);
     if (!real) {
       console.log(`Fake users (password ${DEV_PASSWORD}): ${DEV_USERS.join(', ')}`);
     }
@@ -215,7 +215,11 @@ function docker(args: string[]): string {
   return execFileSync('docker', args, { encoding: 'utf8' });
 }
 
-/** Reads a sheet but refuses every write, for local previews of the real owner records. */
+/**
+ * Reads a sheet but refuses every write except an admin's contact-detail save, for local previews of
+ * the real owner records (Ryan, 2026-11-22: fill in contacts before the site is deployed). Sign-up
+ * requests and approvals stay blocked.
+ */
 class ReadOnlySheetSource implements SheetSource {
   /** @param inner the real sheet */
   constructor(private readonly inner: SheetSource) {}
@@ -240,12 +244,17 @@ class ReadOnlySheetSource implements SheetSource {
     return this.refuse();
   }
 
+  /** @inheritdoc */
+  setOwnerContact(row: number, contact: OwnerContact): Promise<void> {
+    return this.inner.setOwnerContact(row, contact);
+  }
+
   /**
    * Turns a write into a plain-words error the page shows.
    * @returns never; always rejects
    */
   private refuse(): Promise<void> {
-    return Promise.reject(new HttpError(403, 'The local preview only reads the real sheet. Use npm run dev:fake to try changes.'));
+    return Promise.reject(new HttpError(403, 'The local preview only saves owner contact details to the real sheet. Use npm run dev:fake to try other changes.'));
   }
 }
 

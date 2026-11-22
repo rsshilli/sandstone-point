@@ -58,13 +58,27 @@ describe('Google Sheets source', () => {
     await source.appendRequest({ submitted: '2026-11-22', name: '=1+1', email: 'a@x.com', phone: '', lotsClaimed: '7' });
     await source.setRequestStatus(5, 'Approved', 'admin@x.com', '2026-11-22');
     await source.setOwnerEmails(9, ['a@x.com', 'b@x.com']);
+    await source.setOwnerContact(4, { emails: ['c@x.com'], phone: '=HYPERLINK("x")', mailingAddress: 'PO Box 1' });
+    await source.setOwnerContact(6, { phone: '555' });
+    await source.setOwnerContact(7, {});
     const writes = seen.filter((call) => !call.url.includes('oauth2'));
     expect(writes.map((call) => `${call.method} ${decodeURIComponent(new URL(call.url).pathname)}`)).toEqual([
       "POST /v4/spreadsheets/SHEET123/values/'Sign-up requests'!A:I:append",
       "PUT /v4/spreadsheets/SHEET123/values/'Sign-up requests'!F5:H5",
       'PUT /v4/spreadsheets/SHEET123/values/Owners!E9',
+      'POST /v4/spreadsheets/SHEET123/values:batchUpdate',
+      'POST /v4/spreadsheets/SHEET123/values:batchUpdate',
     ]);
-    for (const call of writes) {
+    expect(JSON.parse(writes[3].body ?? '')).toEqual({
+      valueInputOption: 'RAW',
+      data: [
+        { range: 'Owners!E4', values: [['c@x.com']] },
+        { range: 'Owners!F4', values: [['=HYPERLINK("x")']] },
+        { range: 'Owners!G4', values: [['PO Box 1']] },
+      ],
+    });
+    expect(JSON.parse(writes[4].body ?? '').data).toEqual([{ range: 'Owners!F6', values: [['555']] }]);
+    for (const call of writes.slice(0, 3)) {
       expect(new URL(call.url).searchParams.get('valueInputOption')).toBe('RAW');
     }
     expect(JSON.parse(writes[0].body ?? '').values[0][1]).toBe('=1+1');
@@ -85,6 +99,7 @@ describe('cached sheet source', () => {
       appendRequest: async () => undefined,
       setRequestStatus: async () => undefined,
       setOwnerEmails: async () => undefined,
+      setOwnerContact: async () => undefined,
     };
     let now = 0;
     const cached = new CachedSheetSource(inner, 1000, () => now);

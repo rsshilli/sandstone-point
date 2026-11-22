@@ -1,6 +1,6 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import type { Cell, NewSignupRequest, SheetSource, SheetValues } from './sheet';
+import type { Cell, NewSignupRequest, OwnerContact, SheetSource, SheetValues } from './sheet';
 
 /**
  * A stand-in for the Google Sheet, kept in a JSON file with the same rows and columns. Used for
@@ -43,6 +43,22 @@ export class FileSheetSource implements SheetSource {
   async setOwnerEmails(row: number, emails: string[]): Promise<void> {
     const values = this.load();
     rowCells(values.owners, row, 11)[4] = emails.join(', ');
+    this.save(values);
+  }
+
+  /** @inheritdoc */
+  async setOwnerContact(row: number, contact: OwnerContact): Promise<void> {
+    const values = this.load();
+    const cells = rowCells(values.owners, row, 11);
+    if (contact.emails) {
+      cells[4] = contact.emails.join(', ');
+    }
+    if (contact.phone !== undefined) {
+      cells[5] = contact.phone;
+    }
+    if (contact.mailingAddress !== undefined) {
+      cells[6] = contact.mailingAddress;
+    }
     this.save(values);
   }
 

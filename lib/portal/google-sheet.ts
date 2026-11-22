@@ -1,5 +1,5 @@
 import { createSign } from 'node:crypto';
-import { READ_RANGES, TABS, type Cell, type NewSignupRequest, type SheetSource, type SheetValues } from './sheet';
+import { READ_RANGES, TABS, type Cell, type NewSignupRequest, type OwnerContact, type SheetSource, type SheetValues } from './sheet';
 
 /** The service account key fields we use, plus which spreadsheet to open. */
 export interface GoogleSheetConfig {
@@ -64,6 +64,24 @@ export class GoogleSheetSource implements SheetSource {
   /** @inheritdoc */
   async setOwnerEmails(row: number, emails: string[]): Promise<void> {
     await this.update(`${TABS.owners}!E${row}`, [[emails.join(', ')]]);
+  }
+
+  /** @inheritdoc */
+  async setOwnerContact(row: number, contact: OwnerContact): Promise<void> {
+    // Only the cells that changed, so a note typed beside an email (or anything else) survives a phone edit.
+    const data: { range: string; values: string[][] }[] = [];
+    if (contact.emails) {
+      data.push({ range: `${TABS.owners}!E${row}`, values: [[contact.emails.join(', ')]] });
+    }
+    if (contact.phone !== undefined) {
+      data.push({ range: `${TABS.owners}!F${row}`, values: [[contact.phone]] });
+    }
+    if (contact.mailingAddress !== undefined) {
+      data.push({ range: `${TABS.owners}!G${row}`, values: [[contact.mailingAddress]] });
+    }
+    if (data.length > 0) {
+      await this.call('POST', '/values:batchUpdate', { valueInputOption: 'RAW', data });
+    }
   }
 
   /**

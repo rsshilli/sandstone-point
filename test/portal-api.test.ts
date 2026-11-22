@@ -113,6 +113,7 @@ describe('portal API', () => {
     const company = body.allLots.find((lot: { taxNames: string[] }) => lot.taxNames.includes('SAMPLE HOLDINGS LLC'));
     expect(company).toBeDefined();
     expect(company.owners).toEqual([]);
+    expect(company.people).toEqual([{ id: 'O-004', name: '', taxName: 'SAMPLE HOLDINGS LLC' }]);
   });
 
   it('should show nothing private to an Inactive owner or a stranger, only their request status', async () => {
@@ -158,6 +159,102 @@ describe('portal API', () => {
     const { body } = await call('GET', '/api/me', 'owner@example.com');
     expect(body.lots.map((lot: { lot: string }) => lot.lot)).toEqual(['2', '3', '4']);
     expect(body).toMatchObject({ name: 'Pat Owner', gateCode: '2222, 4444', totalOwed: 480 });
+  });
+
+  it('should give an admin every owner record with email, phone and mailing address, and refuse an owner', async () => {
+    const { status, body } = await call('GET', '/api/admin/owners', 'admin@example.com');
+    expect(status).toBe(200);
+    expect(body.owners).toHaveLength(5);
+    expect(body.owners[3]).toEqual({
+      id: 'O-004',
+      name: '',
+      taxName: 'SAMPLE HOLDINGS LLC',
+      emails: [],
+      phone: '',
+      mailingAddress: '4 Example Rd, Nowhere, KY 00000',
+      role: 'Owner',
+      active: true,
+      lots: ['4'],
+    });
+    expect((await call('GET', '/api/admin/owners', 'owner@example.com')).status).toBe(403);
+    expect((await call('POST', '/api/admin/owners/contact', 'owner@example.com', { ownerId: 'O-003', phone: '1' })).status).toBe(403);
+  });
+
+  it('should save an owner contact into Email, Phone and Mailing address, after which that email can sign in', async () => {
+    const saved = await call('POST', '/api/admin/owners/contact', 'admin@example.com', {
+      ownerId: 'O-003',
+      emails: ' Sam@Example.com, sam@example.com; work@example.com ',
+      phone: ' 555-0199 ',
+      mailingAddress: 'PO Box 9, Monticello, KY',
+      previous: { emails: [], phone: '', mailingAddress: '2 Example Rd, Nowhere, KY 00000' },
+    });
+    expect(saved).toEqual({
+      status: 200,
+      body: { ok: true, emails: ['sam@example.com', 'work@example.com'], phone: '555-0199', mailingAddress: 'PO Box 9, Monticello, KY' },
+    });
+    expect(sheetOnDisk().owners[2].slice(4, 7)).toEqual(['sam@example.com, work@example.com', '555-0199', 'PO Box 9, Monticello, KY']);
+    const me = await call('GET', '/api/me', 'work@example.com');
+    expect(me.body).toMatchObject({ kind: 'member', gateCode: '3333' });
+  });
+
+  it('should refuse a contact save with a bad email, an unknown owner, or a changed admin email', async () => {
+    await call('GET', '/api/me', 'admin@example.com');
+    const before = JSON.stringify(sheetOnDisk().owners);
+    const sam = { emails: [], phone: '', mailingAddress: '2 Example Rd, Nowhere, KY 00000' };
+    const bad = await call('POST', '/api/admin/owners/contact', 'admin@example.com', { ownerId: 'O-003', emails: 'not-an-email', previous: sam });
+    expect(bad).toEqual({ status: 400, body: { error: '"not-an-email" doesn\'t look like an email address.' } });
+    const query = await call('POST', '/api/admin/owners/contact', 'admin@example.com', { ownerId: 'O-003', emails: 'a@x.com?subject=hi', previous: sam });
+    expect(query.status).toBe(400);
+    expect((await call('POST', '/api/admin/owners/contact', 'admin@example.com', { ownerId: 'O-999', emails: '' })).status).toBe(404);
+    const alex = { emails: ['admin@example.com'], phone: '555-0101', mailingAddress: '1 Example Rd, Nowhere, KY 00000' };
+    const adminEmail = await call('POST', '/api/admin/owners/contact', 'admin@example.com', { ownerId: 'O-001', emails: 'thief@example.com', previous: alex });
+    expect(adminEmail.status).toBe(400);
+    const frankie = { emails: ['former@example.com'], phone: '', mailingAddress: '5 Example Rd, Nowhere, KY 00000' };
+    const inactive = await call('POST', '/api/admin/owners/contact', 'admin@example.com', { ownerId: 'O-005', emails: 'new@example.com', previous: frankie });
+    expect(inactive.status).toBe(400);
+    expect(JSON.stringify(sheetOnDisk().owners)).toBe(before);
+    const adminPhone = await call('POST', '/api/admin/owners/contact', 'admin@example.com', {
+      ownerId: 'O-001',
+      emails: 'ADMIN@example.com',
+      phone: '555-0000',
+      mailingAddress: alex.mailingAddress,
+      previous: alex,
+    });
+    expect(adminPhone.status).toBe(200);
+    expect(sheetOnDisk().owners[0].slice(4, 6)).toEqual(['admin@example.com', '555-0000']);
+  });
+
+  it('should refuse a contact save when the sheet changed after the page loaded, so a removed email stays removed', async () => {
+    await call('GET', '/api/me', 'admin@example.com');
+    const sheet = sheetOnDisk();
+    sheet.owners[1][4] = ''; // the board takes the email off in the sheet
+    writeFileSync(workingFile, JSON.stringify(sheet));
+    const stale = await call('POST', '/api/admin/owners/contact', 'admin@example.com', {
+      ownerId: 'O-002',
+      emails: 'owner@example.com',
+      phone: '555-9999',
+      mailingAddress: '2 Example Rd, Nowhere, KY 00000',
+      previous: { emails: ['owner@example.com'], phone: '555-0102', mailingAddress: '2 Example Rd, Nowhere, KY 00000' },
+    });
+    expect(stale.status).toBe(409);
+    expect(sheetOnDisk().owners[1].slice(4, 6)).toEqual(['', '555-0102']);
+    expect((await call('POST', '/api/admin/owners/contact', 'admin@example.com', { ownerId: 'O-002', phone: '1' })).status).toBe(409);
+  });
+
+  it('should leave the Email cell untouched, notes and all, when only the phone changes', async () => {
+    await call('GET', '/api/me', 'admin@example.com');
+    const sheet = sheetOnDisk();
+    sheet.owners[1][4] = 'owner@example.com (work), owner@example.com';
+    writeFileSync(workingFile, JSON.stringify(sheet));
+    const saved = await call('POST', '/api/admin/owners/contact', 'admin@example.com', {
+      ownerId: 'O-002',
+      emails: 'owner@example.com',
+      phone: '555-1234',
+      mailingAddress: '2 Example Rd, Nowhere, KY 00000',
+      previous: { emails: ['owner@example.com', 'owner@example.com'], phone: '555-0102', mailingAddress: '2 Example Rd, Nowhere, KY 00000' },
+    });
+    expect(saved.status).toBe(200);
+    expect(sheetOnDisk().owners[1].slice(4, 6)).toEqual(['owner@example.com (work), owner@example.com', '555-1234']);
   });
 
   it('should refuse a request from an email holding a comma, semicolon or space', async () => {

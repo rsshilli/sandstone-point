@@ -1,11 +1,16 @@
 // The owner portal: what the signed-in person owns and owes, and (for admins) every lot and the
 // sign-up requests. All text from the sheet is inserted with textContent, never as HTML.
 import { api, goToLogin, isSignedIn, signOut } from './auth.js';
+import { showLotMap } from './lot-map.js';
 
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 /** Every lot, for the admin table (replaced after each approval). */
 let adminLots = [];
 let filterWired = false;
+/** Every owner record with contact details, by owner ID (admins only). */
+let ownerContacts = new Map();
+/** The owner record open in the contact window. */
+let openOwnerId = '';
 
 /**
  * Loads the account and shows the right view.
@@ -26,7 +31,8 @@ async function main() {
       showMember(me);
       if (me.allLots) {
         showAdmin(me.allLots);
-        await loadRequests();
+        wireOwnerDialog();
+        await Promise.all([loadRequests(), loadOwners()]);
       }
     } else {
       showVisitor(me);
@@ -48,6 +54,10 @@ function showMember(me) {
   owed.textContent = me.totalOwed > 0 ? money.format(me.totalOwed) : me.totalOwed < 0 ? `${money.format(-me.totalOwed)} credit` : 'Nothing';
   owed.classList.toggle('ok', me.totalOwed <= 0);
   document.getElementById('lot-count').textContent = me.lots.length ? me.lots.map((lot) => lot.lot).join(', ') : 'None on record';
+  const mapSlot = document.getElementById('lot-map');
+  showLotMap(mapSlot, me.lots.map((lot) => lot.lot)).catch((error) => {
+    mapSlot.replaceChildren(el('p', { class: 'muted' }, error.message));
+  });
   fillRows(
     'my-lots',
     me.lots.map((lot) => [lot.lot, lot.status || '—', lot.owners.join(', ') || '—', lot.taxNames.join('; ') || '—', num(money.format(lot.annualDues)), num(money.format(lot.balance))]),
@@ -96,14 +106,191 @@ function renderAllLots() {
     'all-lots',
     shown.map((lot) => [
       lot.lot,
-      lot.owners.join(', ') || '—',
-      lot.taxNames.join('; ') || '—',
+      ownerLinks(lot.people, 'name'),
+      ownerLinks(lot.people, 'taxName'),
       lot.status || '—',
       num(money.format(lot.balance)),
       lot.gateCodes.join(', ') || '—',
       lot.hasLogin ? 'Yes' : 'No',
     ]),
   );
+}
+
+/**
+ * Builds a table cell's worth of name links, one per owner record, that open the contact window.
+ * A name shared by two records (one tax name for a couple) is shown once.
+ * @param {Array<{id: string, name: string, taxName: string}>} people the lot's owner records
+ * @param {'name'|'taxName'} key which name to show
+ * @returns {Node} the links, or a dash when there are none
+ */
+function ownerLinks(people, key) {
+  const seen = new Set();
+  const box = document.createDocumentFragment();
+  for (const person of people) {
+    const label = person[key];
+    if (!label || seen.has(label)) {
+      continue;
+    }
+    seen.add(label);
+    const link = el('button', { type: 'button', class: 'link', title: 'Contact details' }, label);
+    link.addEventListener('click', () => openOwner(person.id));
+    box.append(link);
+  }
+  return box.childNodes.length ? box : document.createTextNode('—');
+}
+
+/**
+ * Loads every owner record's contact details for the contact window.
+ */
+async function loadOwners() {
+  const { owners } = await api('/api/admin/owners');
+  ownerContacts = new Map(owners.map((owner) => [owner.id, owner]));
+}
+
+/**
+ * Wires the contact window's buttons and form once.
+ */
+function wireOwnerDialog() {
+  const dialog = document.getElementById('owner-dialog');
+  for (const button of dialog.querySelectorAll('[data-close]')) {
+    button.addEventListener('click', () => dialog.close());
+  }
+  document.getElementById('owner-edit').addEventListener('click', showOwnerForm);
+  document.getElementById('owner-form').addEventListener('submit', saveOwner);
+}
+
+/**
+ * Opens the contact window for one owner record: the details when there are any, otherwise
+ * straight to the form so they can be filled in.
+ * @param {string} id the owner ID
+ */
+async function openOwner(id) {
+  if (!ownerContacts.has(id)) {
+    // Not loaded yet, or the first load failed: try once more and say why if it fails again.
+    try {
+      await loadOwners();
+    } catch (error) {
+      showMessage(`Couldn't load the owner records: ${error.message}`);
+      return;
+    }
+  }
+  const owner = ownerContacts.get(id);
+  if (!owner) {
+    showMessage('That owner record is no longer in the sheet. Refresh the page.');
+    return;
+  }
+  openOwnerId = id;
+  document.getElementById('owner-title').textContent = owner.name || owner.taxName || owner.id;
+  const facts = [
+    owner.name && owner.taxName ? `Tax record: ${owner.taxName}` : '',
+    owner.lots.length ? `Lot ${owner.lots.join(', ')}` : 'No lots',
+    owner.role === 'Admin' ? 'Board admin' : '',
+    owner.active ? '' : 'Inactive (no longer an owner)',
+  ];
+  document.getElementById('owner-summary').textContent = facts.filter((fact) => fact).join(' · ');
+  document.getElementById('owner-message').hidden = true;
+  const hasAny = owner.emails.length > 0 || owner.phone || owner.mailingAddress;
+  if (hasAny) {
+    showOwnerView(owner);
+  } else {
+    showOwnerForm();
+  }
+  document.getElementById('owner-dialog').showModal();
+}
+
+/**
+ * Shows an owner's details, with email and phone as links that start an email or a call.
+ * @param {any} owner the owner record
+ */
+function showOwnerView(owner) {
+  const details = document.getElementById('owner-details');
+  details.replaceChildren();
+  const emails = document.createDocumentFragment();
+  owner.emails.forEach((email, index) => {
+    emails.append(index ? ', ' : '', el('a', { href: `mailto:${encodeURIComponent(email)}` }, email));
+  });
+  const phone = owner.phone ? el('a', { href: `tel:${owner.phone.replace(/[^\d+]/g, '')}` }, owner.phone) : '—';
+  for (const [label, value] of [
+    ['Email', owner.emails.length ? emails : '—'],
+    ['Phone', phone],
+    ['Mailing address', owner.mailingAddress || '—'],
+  ]) {
+    const dd = el('dd');
+    dd.append(value);
+    details.append(el('dt', {}, label), dd);
+  }
+  document.getElementById('owner-form').hidden = true;
+  document.getElementById('owner-view').hidden = false;
+}
+
+/**
+ * Switches the contact window to the form, filled with what is on record.
+ */
+function showOwnerForm() {
+  const owner = ownerContacts.get(openOwnerId);
+  const form = document.getElementById('owner-form');
+  const fields = form.elements;
+  fields.namedItem('emails').value = owner.emails.join(', ');
+  fields.namedItem('phone').value = owner.phone;
+  fields.namedItem('mailingAddress').value = owner.mailingAddress;
+  // An admin's email decides who is an admin, and an Inactive record's would gain a login the
+  // day it's set back to Active, so both are only changed in the sheet itself.
+  const isAdmin = owner.role === 'Admin';
+  const emailLocked = isAdmin || !owner.active;
+  fields.namedItem('emails').readOnly = emailLocked;
+  let note = 'Each email here can sign in and see this owner’s lots and gate code. Separate several with commas.';
+  if (isAdmin) {
+    note = 'Board admin emails can only be changed in the sheet itself.';
+  } else if (!owner.active) {
+    note = 'This record is Inactive, so its emails can only be changed in the sheet itself.';
+  }
+  document.getElementById('owner-email-note').textContent = note;
+  document.getElementById('owner-view').hidden = true;
+  form.hidden = false;
+  fields.namedItem(emailLocked ? 'phone' : 'emails').focus();
+}
+
+/**
+ * Saves the contact form to the sheet, then refreshes the owner records and the lot table
+ * (a new email changes the Login column).
+ * @param {SubmitEvent} event the form's submit
+ */
+async function saveOwner(event) {
+  event.preventDefault();
+  const form = event.target;
+  const button = form.querySelector('button[type=submit]');
+  const fields = form.elements;
+  const loaded = ownerContacts.get(openOwnerId);
+  button.disabled = true;
+  try {
+    await api('/api/admin/owners/contact', {
+      method: 'POST',
+      body: {
+        ownerId: openOwnerId,
+        emails: fields.namedItem('emails').value,
+        phone: fields.namedItem('phone').value,
+        mailingAddress: fields.namedItem('mailingAddress').value,
+        // What this page showed, so the server can refuse if the sheet changed since.
+        previous: { emails: loaded.emails, phone: loaded.phone, mailingAddress: loaded.mailingAddress },
+      },
+    });
+    const [me] = await Promise.all([api('/api/me'), loadOwners()]);
+    showAdmin(me.allLots);
+    showOwnerView(ownerContacts.get(openOwnerId));
+    const note = document.getElementById('owner-message');
+    note.textContent = 'Saved to the owner records.';
+    note.className = 'message info';
+    note.hidden = false;
+  } catch (error) {
+    const note = document.getElementById('owner-message');
+    note.textContent = error.message;
+    note.className = 'message error';
+    note.hidden = false;
+    // If the sheet changed underneath us, reopening the name should show the latest.
+    loadOwners().catch(() => {});
+  } finally {
+    button.disabled = false;
+  }
 }
 
 /**
@@ -184,7 +371,7 @@ async function review(card, decision, body) {
     showMessage(decision === 'approve' ? `Approved. ${body.email} can now see their account.` : `Rejected the request from ${body.email}.`, 'info');
     const me = await api('/api/me');
     showAdmin(me.allLots);
-    await loadRequests();
+    await Promise.all([loadRequests(), loadOwners()]);
   } catch (error) {
     showMessage(error.message);
     for (const button of card.querySelectorAll('button')) {
@@ -229,9 +416,10 @@ function showVisitor(me) {
 }
 
 /**
- * Replaces a table body's rows. A cell is text, or {text, num: true} for a right-aligned number.
+ * Replaces a table body's rows. A cell is text, a DOM node (e.g. links), or {text, num: true}
+ * for a right-aligned number.
  * @param {string} id the tbody id
- * @param {Array<Array<string|{text: string, num: boolean}>>} rows
+ * @param {Array<Array<string|Node|{text: string, num: boolean}>>} rows
  */
 function fillRows(id, rows) {
   const body = document.getElementById(id);
@@ -239,7 +427,13 @@ function fillRows(id, rows) {
     ...rows.map((cells) => {
       const row = el('tr');
       for (const cell of cells) {
-        row.append(typeof cell === 'object' ? el('td', { class: 'num' }, cell.text) : el('td', {}, String(cell ?? '')));
+        if (cell instanceof Node) {
+          const td = el('td');
+          td.append(cell);
+          row.append(td);
+        } else {
+          row.append(typeof cell === 'object' ? el('td', { class: 'num' }, cell.text) : el('td', {}, String(cell ?? '')));
+        }
       }
       return row;
     }),

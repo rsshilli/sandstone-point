@@ -52,6 +52,9 @@
           <div class="stat"><div class="label">Your lots</div><div class="value" id="lot-count"></div></div>
         </div>
 
+        <h2>Where your lots are</h2>
+        <div id="lot-map" class="lot-map-slot"><p class="muted">Loading the map…</p></div>
+
         <h2>Your lots</h2>
         <div class="table-wrap">
           <table>
@@ -102,6 +105,29 @@
           </form>
         </div>
       </div>
+
+      <!-- Admins only: one owner's contact details, opened by clicking a name in the lot tables -->
+      <dialog id="owner-dialog" class="card owner-dialog" aria-labelledby="owner-title">
+        <h2 id="owner-title"></h2>
+        <p class="muted" id="owner-summary"></p>
+        <p class="message" id="owner-message" role="alert" hidden></p>
+        <div id="owner-view">
+          <dl id="owner-details"></dl>
+          <div class="actions">
+            <button type="button" id="owner-edit">Edit</button>
+            <button type="button" class="secondary" data-close>Close</button>
+          </div>
+        </div>
+        <form id="owner-form" hidden>
+          <label>Email <small id="owner-email-note">Each email here can sign in and see this owner&rsquo;s lots and gate code. Separate several with commas.</small><input name="emails" type="text" inputmode="email" autocomplete="off" maxlength="300" /></label>
+          <label>Phone <input name="phone" type="tel" autocomplete="off" maxlength="120" /></label>
+          <label>Mailing address <textarea name="mailingAddress" rows="3" maxlength="300"></textarea></label>
+          <div class="actions">
+            <button type="submit">Save to the owner records</button>
+            <button type="button" class="secondary" data-close>Cancel</button>
+          </div>
+        </form>
+      </dialog>
     </main>
 
     <footer>

@@ -51,6 +51,7 @@ export interface Owner {
   /** Lower-cased login emails; the Email cell may hold several, separated by commas. */
   emails: string[];
   phone: string;
+  mailingAddress: string;
   role: 'Owner' | 'Admin';
   gateCode: string;
   active: boolean;
@@ -95,6 +96,16 @@ export interface SheetData {
   requests: SignupRequest[];
 }
 
+/** An owner's contact cells on the Owners tab: E Email, F Phone, G Mailing address. */
+export interface OwnerContact {
+  /** Every email for the record (each one can sign in to the portal). Left out = leave the cell alone. */
+  emails?: string[];
+  /** Left out = leave the cell alone. */
+  phone?: string;
+  /** Left out = leave the cell alone. */
+  mailingAddress?: string;
+}
+
 /** A new sign-up request, as written to the sheet. */
 export interface NewSignupRequest {
   submitted: string;
@@ -133,6 +144,12 @@ export interface SheetSource {
    * @param emails the full list of emails to store
    */
   setOwnerEmails(row: number, emails: string[]): Promise<void>;
+  /**
+   * Replaces an owner's Email, Phone and Mailing address cells.
+   * @param row the owner's spreadsheet row
+   * @param contact the new values
+   */
+  setOwnerContact(row: number, contact: OwnerContact): Promise<void>;
 }
 
 /**
@@ -180,6 +197,7 @@ function parseOwner(cells: Cell[], row: number): Owner | undefined {
     lastName: text(cells[3]),
     emails: splitEmails(text(cells[4])),
     phone: text(cells[5]),
+    mailingAddress: text(cells[6]),
     role: text(cells[7]).toLowerCase() === 'admin' ? 'Admin' : 'Owner',
     gateCode: text(cells[8]),
     // Only the word Active lets someone in; "Sold", a typo or a blank cell does not.

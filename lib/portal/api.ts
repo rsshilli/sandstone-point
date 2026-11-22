@@ -1,4 +1,4 @@
-import { readSheet, type LedgerEntry, type Lot, type Owner, type SheetData, type SheetSource, type SignupRequest } from './sheet';
+import { readSheet, type LedgerEntry, type Lot, type Owner, type OwnerContact, type SheetData, type SheetSource, type SignupRequest } from './sheet';
 import { AuthError, type Identity, type TokenVerifier } from './auth';
 
 /** An HTTP request, reduced to what the portal API needs (same shape locally and in Lambda). */
@@ -28,6 +28,10 @@ export interface ApiDeps {
 
 /** Longest text accepted in a sign-up request field. */
 const MAX_FIELD = 120;
+/** Longest mailing address accepted (several lines). */
+const MAX_ADDRESS = 300;
+/** Longest email list accepted (a few addresses). */
+const MAX_EMAILS_FIELD = 300;
 
 /** An error with an HTTP status and a message safe to show the visitor. */
 export class HttpError extends Error {
@@ -53,6 +57,8 @@ export class HttpError extends Error {
  * - GET  /api/admin/requests          admins: pending requests and the owner list to link them to
  * - POST /api/admin/requests/approve  admins: link a request's email to an owner record
  * - POST /api/admin/requests/reject   admins: turn a request down
+ * - GET  /api/admin/owners            admins: every owner record with its contact details
+ * - POST /api/admin/owners/contact    admins: change an owner's email(s), phone and mailing address
  * @param request the incoming call
  * @param deps the sheet, the token checker and the clock
  * @returns the response to send
@@ -73,6 +79,10 @@ export async function handleApiRequest(request: ApiRequest, deps: ApiDeps): Prom
         return await reviewRequest(identity, parseBody(request.body), deps.source, now, 'Approved');
       case 'POST /api/admin/requests/reject':
         return await reviewRequest(identity, parseBody(request.body), deps.source, now, 'Rejected');
+      case 'GET /api/admin/owners':
+        return { status: 200, body: listOwnerContacts(requireAdmin(identity, await readSheet(deps.source))) };
+      case 'POST /api/admin/owners/contact':
+        return await saveOwnerContact(identity, parseBody(request.body), deps.source);
       default:
         return { status: 404, body: { error: 'No such page.' } };
     }
@@ -222,6 +232,121 @@ async function reviewRequest(
 }
 
 /**
+ * Lists every owner record (active or not) with its contact details, for the admin's
+ * "who is this?" window.
+ * @param data the sheet (caller is a verified admin)
+ * @returns the owners
+ */
+function listOwnerContacts(data: SheetData): unknown {
+  return {
+    owners: data.owners.map((owner) => ({
+      id: owner.id,
+      name: `${owner.firstName} ${owner.lastName}`.trim(),
+      taxName: owner.taxName,
+      emails: owner.emails,
+      phone: owner.phone,
+      mailingAddress: owner.mailingAddress,
+      role: owner.role,
+      active: owner.active,
+      lots: data.lots.filter((lot) => lot.ownerIds.includes(owner.id)).map((lot) => lot.lot),
+    })),
+  };
+}
+
+/**
+ * Saves an owner's email(s), phone and mailing address. Every email on a record can sign in
+ * and see that record's lots and gate code, so admin records' emails can't change here (that
+ * would hand out admin rights); they are changed in the sheet itself.
+ * @param identity the admin
+ * Only the fields that differ from the sheet are written, and the save is refused when the sheet
+ * changed after the admin's page loaded it, so an old page can't put back an email the board removed.
+ * @param identity the admin
+ * @param body the parsed body: ownerId, emails (text, comma separated), phone, mailingAddress, and
+ *   previous: the same three as the page loaded them
+ * @param source the sheet
+ * @returns 200 with the record's contact details after the save
+ */
+async function saveOwnerContact(identity: Identity, body: Record<string, unknown>, source: SheetSource): Promise<ApiResponse> {
+  // Fresh, not cached: the write goes by row number, so the rows must be as they are right now.
+  const data = requireAdmin(identity, await readSheet(source, true));
+  const owner = data.owners.find((candidate) => candidate.id === body.ownerId);
+  if (!owner) {
+    throw new HttpError(404, 'That owner record is no longer in the sheet. Refresh the page.');
+  }
+  requireUnchangedSince(owner, body.previous);
+  const emailText = field(body.emails, 'Email', false, MAX_EMAILS_FIELD);
+  const phone = field(body.phone, 'Phone', false);
+  const mailingAddress = field(body.mailingAddress, 'Mailing address', false, MAX_ADDRESS);
+  const contact: OwnerContact = {};
+  // Every typed word counts here (not just ones with an @), so "not-an-email" is a change that gets refused.
+  if (!sameEmails(emailText.split(/[\s,;]+/).filter((word) => word), owner.emails)) {
+    if (owner.role === 'Admin') {
+      throw new HttpError(400, 'Admin emails can only be changed in the sheet itself.');
+    }
+    if (!owner.active) {
+      throw new HttpError(400, 'This owner record is marked Inactive, so its emails can only be changed in the sheet itself.');
+    }
+    contact.emails = parseEmailList(emailText);
+  }
+  if (phone !== owner.phone) {
+    contact.phone = phone;
+  }
+  if (mailingAddress !== owner.mailingAddress) {
+    contact.mailingAddress = mailingAddress;
+  }
+  await source.setOwnerContact(owner.row, contact);
+  return {
+    status: 200,
+    body: { ok: true, emails: contact.emails ?? owner.emails, phone, mailingAddress },
+  };
+}
+
+/**
+ * Throws 409 when the record's contact details no longer match what the admin's page showed.
+ * @param owner the record as it is in the sheet right now
+ * @param previous what the page loaded: { emails: string[], phone, mailingAddress }
+ */
+function requireUnchangedSince(owner: Owner, previous: unknown): void {
+  const loaded = (typeof previous === 'object' && previous !== null ? previous : {}) as Record<string, unknown>;
+  const loadedEmails = Array.isArray(loaded.emails) ? loaded.emails.map(String) : [];
+  if (
+    !Array.isArray(loaded.emails) ||
+    !sameEmails(loadedEmails, owner.emails) ||
+    loaded.phone !== owner.phone ||
+    loaded.mailingAddress !== owner.mailingAddress
+  ) {
+    throw new HttpError(409, 'Someone changed this owner’s contact details since your page loaded them. Close this window and open the name again to see the latest.');
+  }
+}
+
+/**
+ * Compares two email lists as sets, ignoring case, order and repeats.
+ * @param a one list
+ * @param b the other
+ * @returns true when they hold the same addresses
+ */
+function sameEmails(a: string[], b: string[]): boolean {
+  const left = new Set(a.map((email) => email.toLowerCase()));
+  const right = new Set(b.map((email) => email.toLowerCase()));
+  return left.size === right.size && [...left].every((email) => right.has(email));
+}
+
+/**
+ * Splits typed email text into lower-cased addresses, refusing anything that isn't one.
+ * @param textValue e.g. "a@x.com, b@y.com"
+ * @returns the addresses, without repeats
+ */
+function parseEmailList(textValue: string): string[] {
+  const emails = [...new Set(textValue.split(/[\s,;]+/).map((email) => email.trim().toLowerCase()).filter((email) => email))];
+  // No ? & or # either: they'd turn a mailto: link into one that prefills a subject or body.
+  const bad = emails.find((email) => !/^[^@\s?&#]+@[^@\s?&#]+\.[^@\s?&#]+$/.test(email));
+  if (bad) {
+    throw new HttpError(400, `"${bad}" doesn't look like an email address.`);
+  }
+  return emails;
+}
+
+/**
  * Throws 403 unless the person is an active Admin on the Owners tab.
  * @param identity the signed-in person
  * @param data the sheet
@@ -309,6 +434,8 @@ function describeLotForAdmin(lot: Lot, data: SheetData): unknown {
   const owners = ownersOf(lot, data);
   return {
     ...describeLot(lot, data),
+    // One entry per owner record, so each name on the page can open that record's contact details.
+    people: owners.map((owner) => ({ id: owner.id, name: `${owner.firstName} ${owner.lastName}`.trim(), taxName: owner.taxName })),
     gateCodes: owners.filter((owner) => owner.active && owner.gateCode).map((owner) => owner.gateCode),
     hasLogin: owners.some((owner) => owner.active && owner.emails.length > 0),
   };
@@ -378,14 +505,15 @@ function parseBody(body: string | undefined): Record<string, unknown> {
  * @param value the submitted value
  * @param label the field's name, for the error message
  * @param required whether it must be filled in
+ * @param maxLength the longest text accepted
  * @returns the trimmed text
  */
-function field(value: unknown, label: string, required: boolean): string {
+function field(value: unknown, label: string, required: boolean, maxLength = MAX_FIELD): string {
   const textValue = typeof value === 'string' ? value.trim() : '';
   if (required && !textValue) {
     throw new HttpError(400, `${label} is required.`);
   }
-  if (textValue.length > MAX_FIELD) {
+  if (textValue.length > maxLength) {
     throw new HttpError(400, `${label} is too long.`);
   }
   return textValue;

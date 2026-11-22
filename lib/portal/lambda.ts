@@ -2,7 +2,7 @@ import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-sec
 import { handleApiRequest, type ApiDeps } from './api';
 import { createTokenVerifier } from './auth';
 import { GoogleSheetSource, type GoogleSheetConfig } from './google-sheet';
-import type { NewSignupRequest, SheetSource, SheetValues } from './sheet';
+import type { NewSignupRequest, OwnerContact, SheetSource, SheetValues } from './sheet';
 
 /** The parts of an API Gateway HTTP API (payload 2.0) event we use. */
 interface HttpApiEvent {
@@ -113,6 +113,11 @@ export class CachedSheetSource implements SheetSource {
   /** @inheritdoc */
   async setOwnerEmails(row: number, emails: string[]): Promise<void> {
     await this.write(() => this.inner.setOwnerEmails(row, emails));
+  }
+
+  /** @inheritdoc */
+  async setOwnerContact(row: number, contact: OwnerContact): Promise<void> {
+    await this.write(() => this.inner.setOwnerContact(row, contact));
   }
 
   /**

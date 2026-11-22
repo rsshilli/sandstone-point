@@ -66,11 +66,13 @@ p { margin: 0 0 1rem; }
 form { display: grid; gap: 1rem; }
 label { display: grid; gap: 0.3rem; font-weight: 600; }
 label small { font-weight: 400; color: var(--ink-soft); }
-input, select {
+input, select, textarea {
   font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
   border-radius: 0.5rem; padding: 0.65rem 0.8rem; min-height: 2.75rem; width: 100%;
 }
-input:focus-visible, select:focus-visible, button:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
+textarea { resize: vertical; }
+input[readonly] { background: var(--tint); color: var(--ink-soft); }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
 button {
   font: inherit; font-weight: 700; cursor: pointer; border: 0; border-radius: 0.55rem;
   padding: 0.7rem 1.2rem; min-height: 2.75rem; background: var(--lake-deep); color: #fff;
@@ -94,6 +96,16 @@ button[disabled] { opacity: 0.6; cursor: wait; }
 .stat .value { font-family: "Bitter", Georgia, serif; font-size: 2.1rem; font-weight: 800; letter-spacing: 0.02em; }
 .stat .value.ok { color: var(--ok); }
 .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 0.7rem; background: var(--surface); }
+/* "Where your lots are": aerial photo with traced lot lines; the owner's lots in sun yellow */
+.lot-map { margin: 0; }
+.lot-map svg { display: block; width: 100%; max-height: 72vh; aspect-ratio: 1; background: #24402c; border-radius: 0.7rem; box-shadow: var(--shadow); }
+.lot-map svg.whole { aspect-ratio: auto; }
+.lot-map .lot polygon { fill: rgba(255, 255, 255, 0.06); stroke: rgba(255, 255, 255, 0.85); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.lot-map .lot text { fill: #fff; font: 700 15px "Source Sans 3", system-ui, sans-serif; text-anchor: middle; dominant-baseline: central; paint-order: stroke; stroke: rgba(0, 0, 0, 0.7); stroke-width: 3px; pointer-events: none; }
+.lot-map .lot.mine polygon { fill: rgba(233, 180, 76, 0.42); stroke: var(--sun); stroke-width: 4; }
+.lot-map .lot.mine text { font-size: 22px; }
+.lot-map button { margin-top: 0.75rem; }
+.lot-map figcaption { margin-top: 0.5rem; font-size: 0.92rem; }
 table { border-collapse: collapse; width: 100%; font-size: 0.98rem; }
 th, td { text-align: left; padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { background: var(--tint); font-weight: 700; white-space: nowrap; }
@@ -106,6 +118,17 @@ td.num, th.num { text-align: right; white-space: nowrap; }
 .request dd { margin: 0; overflow-wrap: anywhere; }
 .request .actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: end; }
 .request .actions label { flex: 1 1 16rem; }
+td button.link { display: block; text-align: left; font-size: inherit; }
+
+/* Owner contact window */
+.owner-dialog { width: min(32rem, calc(100vw - 2rem)); color: var(--ink); }
+.owner-dialog::backdrop { background: rgba(15, 30, 40, 0.55); }
+.owner-dialog h2 { margin: 0 0 0.3rem; }
+.owner-dialog dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.4rem 1rem; margin: 0 0 1.25rem; }
+.owner-dialog dt { font-weight: 700; color: var(--ink-soft); }
+.owner-dialog dd { margin: 0; overflow-wrap: anywhere; white-space: pre-line; }
+.owner-dialog .actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.owner-dialog .message { margin-top: 0.5rem; }
 
 footer { background: var(--lake-deep); color: #cfe0e9; }
 .footer-inner { max-width: 1100px; margin: 0 auto; padding: 2rem 1.25rem 2.4rem; text-align: center; }
