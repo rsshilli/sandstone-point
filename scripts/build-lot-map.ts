@@ -6,7 +6,7 @@
 // place using road points matched by eye on the aerial photo (cul-de-sacs and junctions). It also
 // checks each traced lot's area against the acreage printed on the plat, so a mis-traced corner
 // shows up as a wrong area.
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 /** A point on a plat photo, in that photo's pixels (x right, y down). */
@@ -108,20 +108,185 @@ export const PIECES: PlatPiece[] = [
   },
 ];
 
+/** A lot outline read from a plat scan, in that scan's pixels, with the acreage printed on the plat (null where unreadable). */
+interface ScanLot {
+  acres: number | null;
+  ring: Px[];
+}
+
 /**
- * Places every traced lot, prints a check of each piece and lot, and writes the map file.
+ * Lot outlines read from scans of the recorded plat (scripts/plat-tracings.json). Each lot was
+ * flood-filled from a point inside it, so the outline follows the lot lines as drawn. "whole" is
+ * one page showing all of Phase 1 at a small scale; its matchLots are lots that a sharper scan
+ * also shows, kept only to line the scans up with each other.
+ */
+interface PlatTracings {
+  whole: { name: string; lots: Record<string, ScanLot>; matchLots: Record<string, ScanLot> };
+  sheets: { name: string; lots: Record<string, ScanLot> }[];
+}
+
+export const TRACINGS = JSON.parse(readFileSync(join(__dirname, 'plat-tracings.json'), 'utf8')) as PlatTracings;
+
+/** One placed lot's size check: where its outline came from, and its area against the plat's. */
+export interface LotCheck {
+  lot: string;
+  source: string;
+  tracedAcres: number;
+  platAcres: number | null;
+}
+
+/**
+ * Places every traced lot, prints a check of each source and lot, and writes the map file.
  */
 function main(): void {
-  const lots: Record<string, [number, number][]> = {};
-  for (const piece of PIECES) {
-    const { lots: placed, report } = placePiece(piece);
-    console.log(report);
-    Object.assign(lots, placed);
-  }
+  const { lots, report } = buildLots();
+  console.log(report);
   const out = join(__dirname, '..', 'site', 'data', 'lot-map.json');
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, `${JSON.stringify({ aerial: AERIAL, lots }, null, 1)}\n`);
   console.log(`Wrote ${Object.keys(lots).length} lots to ${out}`);
+}
+
+/**
+ * Places every lot from every source. The plat photos (PIECES) are placed on the ground from road
+ * points; the whole-plat scan is then lined up with the lots those photos placed, and each sharper
+ * scan is lined up with the whole-plat scan, using the centres of lots both show. Where several
+ * sources show a lot, the sharper scan wins, then the whole-plat scan, then the photo: lots from
+ * one drawing meet their neighbours cleanly, where a photo lot overlapped them by about 10 m.
+ * @returns every lot as a [lat, lon] ring, a size check per lot, and a readable report
+ */
+export function buildLots(): { lots: Record<string, [number, number][]>; checks: LotCheck[]; report: string } {
+  const origin = PIECES[0].controls[0];
+  const lines: string[] = [];
+  const placed: Record<string, { ring: [number, number][]; source: string; acres: number | null }> = {};
+  const anchors: Record<string, [number, number][]> = {};
+  const fromPhotos: typeof placed = {};
+  for (const piece of PIECES) {
+    const { lots, report } = placePiece(piece);
+    lines.push(report);
+    for (const [lot, ring] of Object.entries(lots)) {
+      anchors[lot] = ring.map(([lat, lon]) => latLonToMetres(lat, lon, origin.lat, origin.lon));
+      fromPhotos[lot] = { ring: anchors[lot], source: piece.name, acres: piece.lots[lot].acres };
+    }
+  }
+
+  const whole = TRACINGS.whole;
+  const wholeRings = { ...whole.matchLots, ...whole.lots };
+  const wholeFit = fitSimilarity(centresOf(wholeRings, flipY), centresOf(anchors));
+  lines.push(`${whole.name}: ${wholeFit.metresPerUnit.toFixed(3)} m/px, lined up on ${wholeFit.used} photo lots within ${wholeFit.misfit.toFixed(1)} m`);
+  Object.assign(placed, fromPhotos);
+  for (const [lot, { ring, acres }] of Object.entries(whole.lots)) {
+    placed[lot] = { ring: ring.map((p) => wholeFit.apply(flipY(p))), source: whole.name, acres };
+  }
+  for (const sheet of TRACINGS.sheets) {
+    const sheetFit = fitSimilarity(centresOf(sheet.lots), centresOf(wholeRings));
+    lines.push(`${sheet.name}: lined up on ${sheetFit.used} lots of the whole plat within ${(sheetFit.misfit * wholeFit.metresPerUnit).toFixed(1)} m`);
+    for (const [lot, { ring, acres }] of Object.entries(sheet.lots)) {
+      placed[lot] = { ring: ring.map((p) => wholeFit.apply(flipY(sheetFit.apply(p)))), source: sheet.name, acres };
+    }
+  }
+
+  const lots: Record<string, [number, number][]> = {};
+  const checks: LotCheck[] = [];
+  for (const lot of Object.keys(placed).sort((a, b) => Number(a) - Number(b))) {
+    const { ring, source, acres } = placed[lot];
+    lots[lot] = ring.map(([e, n]) => metresToLatLon(e, n, origin.lat, origin.lon));
+    const tracedAcres = (ringArea(ring) * FEET_PER_METRE ** 2) / SQ_FEET_PER_ACRE;
+    checks.push({ lot, source, tracedAcres, platAcres: acres });
+    const versus = acres ? `plat says ${acres.toFixed(2)} ac (${(((tracedAcres - acres) / acres) * 100).toFixed(0)}%)` : 'plat acreage unreadable';
+    lines.push(`  lot ${lot}: ${tracedAcres.toFixed(2)} ac, ${versus} — ${source}`);
+  }
+  return { lots, checks, report: lines.join('\n') };
+}
+
+/**
+ * Turns a scan pixel (y down) into a right-handed point (y up), so a plain rotation and scale can
+ * carry it onto the ground (north up).
+ * @param p the pixel
+ * @returns the same point with y negated
+ */
+function flipY(p: [number, number]): [number, number] {
+  return [p[0], -p[1]];
+}
+
+/**
+ * The centre (centroid) of each lot's outline.
+ * @param rings lot number → outline, either as {ring} records or plain rings
+ * @param transform applied to every corner first
+ * @returns lot number → centre
+ */
+function centresOf(
+  rings: Record<string, ScanLot | [number, number][]>,
+  transform: (p: [number, number]) => [number, number] = (p) => p,
+): Record<string, [number, number]> {
+  const centres: Record<string, [number, number]> = {};
+  for (const [lot, value] of Object.entries(rings)) {
+    const ring = (Array.isArray(value) ? value : value.ring).map((p) => transform(p as [number, number]));
+    centres[lot] = ringCentre(ring);
+  }
+  return centres;
+}
+
+/**
+ * The centroid of a polygon.
+ * @param ring corners in order
+ * @returns [x, y]
+ */
+function ringCentre(ring: [number, number][]): [number, number] {
+  let a = 0;
+  let cx = 0;
+  let cy = 0;
+  for (let i = 0; i < ring.length; i += 1) {
+    const [x1, y1] = ring[i];
+    const [x2, y2] = ring[(i + 1) % ring.length];
+    const cross = x1 * y2 - x2 * y1;
+    a += cross;
+    cx += (x1 + x2) * cross;
+    cy += (y1 + y2) * cross;
+  }
+  return [cx / (3 * a), cy / (3 * a)];
+}
+
+/**
+ * The rotation, scale and shift (no stretching) that best carries one set of points onto another,
+ * by least squares over the points both sets name.
+ * @param from name → point
+ * @param to name → point
+ * @returns the mapping, how many points it used, units of `to` per unit of `from`, and the
+ *   largest distance (in `to` units) between a carried point and its match
+ */
+export function fitSimilarity(
+  from: Record<string, [number, number]>,
+  to: Record<string, [number, number]>,
+): { apply: (p: [number, number]) => [number, number]; used: number; metresPerUnit: number; misfit: number } {
+  const names = Object.keys(from).filter((name) => name in to);
+  if (names.length < 2) {
+    throw new Error(`Need at least two shared points to line up a scan, found ${names.length}`);
+  }
+  const mean = (points: [number, number][]): [number, number] => [
+    points.reduce((s, p) => s + p[0], 0) / points.length,
+    points.reduce((s, p) => s + p[1], 0) / points.length,
+  ];
+  const [fx, fy] = mean(names.map((n) => from[n]));
+  const [tx, ty] = mean(names.map((n) => to[n]));
+  // Treat points as complex numbers: to ≈ c · from, with c = Σ conj(a)·b / Σ |a|².
+  let re = 0;
+  let im = 0;
+  let norm = 0;
+  for (const n of names) {
+    const [ax, ay] = [from[n][0] - fx, from[n][1] - fy];
+    const [bx, by] = [to[n][0] - tx, to[n][1] - ty];
+    re += ax * bx + ay * by;
+    im += ax * by - ay * bx;
+    norm += ax * ax + ay * ay;
+  }
+  const [cr, ci] = [re / norm, im / norm];
+  const apply = (p: [number, number]): [number, number] => {
+    const [x, y] = [p[0] - fx, p[1] - fy];
+    return [x * cr - y * ci + tx, x * ci + y * cr + ty];
+  };
+  const misfit = Math.max(...names.map((n) => Math.hypot(apply(from[n])[0] - to[n][0], apply(from[n])[1] - to[n][1])));
+  return { apply, used: names.length, metresPerUnit: Math.hypot(cr, ci), misfit };
 }
 
 /**
