@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Sandstone Point at Lake Cumberland</title>
+  <!-- Large app icon modelled on the entrance sign: red badge, tan rim, gold lettering, sun rising over green hills and the lake. -->
+  <defs>
+    <clipPath id="scene"><circle cx="512" cy="512" r="318"/></clipPath>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fbf3c4"/>
+      <stop offset="0.75" stop-color="#f8df7a"/>
+    </linearGradient>
+    <radialGradient id="badge" cx="0.5" cy="0.42" r="0.62">
+      <stop offset="0" stop-color="#d4554a"/>
+      <stop offset="1" stop-color="#a8322a"/>
+    </radialGradient>
+    <path id="top-arc" d="M 132 512 A 380 380 0 0 1 892 512"/>
+    <path id="bottom-arc" d="M 76 512 A 436 436 0 0 0 948 512"/>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#badge)"/>
+  <circle cx="512" cy="512" r="490" fill="none" stroke="#e7cd96" stroke-width="12"/>
+
+  <g font-family="Georgia, 'Times New Roman', serif" font-weight="bold" fill="#f6cf45" stroke="#5a1e16" stroke-width="5" paint-order="stroke" text-anchor="middle">
+    <text font-size="96" letter-spacing="4"><textPath xlink:href="#top-arc" startOffset="50%">SANDSTONE POINT</textPath></text>
+    <text font-size="64" letter-spacing="3"><textPath xlink:href="#bottom-arc" startOffset="50%">AT LAKE CUMBERLAND</textPath></text>
+  </g>
+
+  <g clip-path="url(#scene)">
+    <rect width="1024" height="1024" fill="url(#sky)"/>
+    <g fill="#f5d662" opacity="0.85">
+      <path d="M512 612 L150 560 L160 490 Z"/>
+      <path d="M512 612 L190 400 L240 345 Z"/>
+      <path d="M512 612 L300 255 L370 225 Z"/>
+      <path d="M512 612 L470 190 L554 190 Z"/>
+      <path d="M512 612 L654 225 L724 255 Z"/>
+      <path d="M512 612 L784 345 L834 400 Z"/>
+      <path d="M512 612 L864 490 L874 560 Z"/>
+    </g>
+    <circle cx="512" cy="612" r="92" fill="#f2c230"/>
+    <path fill="#3aa66a" d="M180 600 L180 520 C 300 505 420 540 560 628 L 180 628 Z"/>
+    <rect y="612" width="1024" height="412" fill="#1f63b0"/>
+    <path fill="#2b8f86" d="M440 850 C 560 690 700 620 850 600 L 850 850 Z"/>
+  </g>
+  <circle cx="512" cy="512" r="318" fill="none" stroke="#e7cd96" stroke-width="16"/>
+</svg>

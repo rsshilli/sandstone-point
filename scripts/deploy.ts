@@ -5,6 +5,12 @@ import { join } from 'node:path';
 
 const ROOT = join(__dirname, '..');
 const PROJECT = 'sandstone-point-hoa';
+/**
+ * The HOA's own address. Google and Facebook sign-in run through it (Firebase Hosting serves
+ * /__/auth/handler there), so their sign-in screens name it instead of the firebaseapp.com one.
+ * Its handler URL must be listed in the Google OAuth client and the Meta app's redirect URIs.
+ */
+const SITE_DOMAIN = 'sandstonepoint.org';
 /** The HOA's robot account. The owner sheet is shared with it, and the API runs as it. */
 const RUNTIME_ACCOUNT = `sandstone-portal@${PROJECT}.iam.gserviceaccount.com`;
 /** Holds the owner sheet's id (and a key, which deploys don't use). Kept out of git. */
@@ -46,7 +52,7 @@ function writeLoginConfig(): void {
   if (!apiKey || !authDomain || projectId !== PROJECT) {
     throw new Error(`Unexpected Firebase web settings for ${PROJECT}`);
   }
-  writeFileSync(join(ROOT, 'site', 'config.json'), `${JSON.stringify({ apiKey, authDomain, projectId }, null, 2)}\n`);
+  writeFileSync(join(ROOT, 'site', 'config.json'), `${JSON.stringify({ apiKey, authDomain: SITE_DOMAIN, projectId }, null, 2)}\n`);
 }
 
 /**
