@@ -1,5 +1,3 @@
-import { SendEmailCommand, SESv2Client } from '@aws-sdk/client-sesv2';
-
 /**
  * The board's Google Group. Owners' messages are emailed here, and signed-in people get it from
  * /api/me for the "Ask the board" links. It is kept out of the published HTML on purpose.
@@ -20,45 +18,50 @@ export interface BoardMailer {
 }
 
 /** Where messages come from and go to. */
-export interface SesMailerConfig {
-  /** A sender on the HOA's own domain (verified in SES), e.g. "Sandstone Point website <website@example.org>". */
+export interface ResendMailerConfig {
+  /** A sender on the HOA's own domain (verified in Resend), e.g. "Sandstone Point website <website@example.org>". */
   from: string;
   /** The board's mailing list. */
   to: string;
-  region: string;
+  /** Resend API key ("re_…"). */
+  apiKey: string;
 }
 
-/**
- * Sends board messages with Amazon SES from the HOA's domain. Reply-To is the owner, so a
- * board member's reply goes straight to them.
- */
-export class SesBoardMailer implements BoardMailer {
-  private readonly client: Pick<SESv2Client, 'send'>;
+const RESEND_URL = 'https://api.resend.com/emails';
+/** Gives up on Resend after this long, well inside the function's own timeout. */
+const RESEND_TIMEOUT_MS = 10_000;
 
+/**
+ * Sends board messages with Resend (resend.com) from the HOA's domain. Reply-To is the owner,
+ * so a board member's reply goes straight to them.
+ */
+export class ResendBoardMailer implements BoardMailer {
   /**
-   * @param config sender, recipient and region
-   * @param client an SES client (injectable for tests)
+   * @param config sender, recipient and API key
+   * @param fetchFn fetch implementation (injectable for tests)
    */
   constructor(
-    private readonly config: SesMailerConfig,
-    client?: Pick<SESv2Client, 'send'>,
-  ) {
-    this.client = client ?? new SESv2Client({ region: config.region });
-  }
+    private readonly config: ResendMailerConfig,
+    private readonly fetchFn: typeof fetch = fetch,
+  ) {}
 
   /**
    * Sends one message as plain text.
    * @param message the message
+   * @throws Error when Resend refuses it or answers without a message id
    */
   async send(message: BoardMessage): Promise<void> {
-    await this.client.send(
-      new SendEmailCommand({
-        FromEmailAddress: this.config.from,
-        Destination: { ToAddresses: [this.config.to] },
-        ReplyToAddresses: [message.replyTo],
-        Content: { Simple: { Subject: { Data: message.subject, Charset: 'UTF-8' }, Body: { Text: { Data: message.text, Charset: 'UTF-8' } } } },
-      }),
-    );
+    const response = await this.fetchFn(RESEND_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${this.config.apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: this.config.from, to: [this.config.to], reply_to: message.replyTo, subject: message.subject, text: message.text }),
+      signal: AbortSignal.timeout(RESEND_TIMEOUT_MS),
+    });
+    const body = (await response.json().catch(() => ({}))) as { id?: string; message?: string };
+    // Only a real send carries an id; anything else is a failure even if the status looks fine.
+    if (!response.ok || typeof body.id !== 'string') {
+      throw new Error(`Resend refused the message: ${response.status} ${body.message ?? ''}`.trim());
+    }
   }
 }
 

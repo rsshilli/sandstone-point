@@ -2,12 +2,12 @@ import { readSheet, type LedgerEntry, type Lot, type Owner, type OwnerContact, t
 import { AuthError, type Identity, type TokenVerifier } from './auth';
 import { BOARD_EMAIL, type BoardMailer } from './mailer';
 
-/** An HTTP request, reduced to what the portal API needs (same shape locally and in Lambda). */
+/** An HTTP request, reduced to what the portal API needs (same shape locally and in the Cloud Function). */
 export interface ApiRequest {
   method: string;
   /** Path without the query string, e.g. "/api/me". */
   path: string;
-  /** The Authorization header ("Bearer <Cognito ID token>"). */
+  /** The Authorization header ("Bearer <Firebase ID token>"). */
   authorization?: string;
   /** Raw request body. */
   body?: string;
@@ -33,7 +33,7 @@ export interface ApiDeps {
 
 /**
  * Remembers recent sends per email and refuses more than `max` in `windowMs`. Kept in memory,
- * so in AWS each warm Lambda counts separately: a brake on accidents and pests, not a guarantee.
+ * so each warm Cloud Function instance counts separately: a brake on accidents and pests, not a guarantee.
  */
 export class SendLimiter {
   private readonly sent = new Map<string, number[]>();
@@ -104,7 +104,7 @@ export class HttpError extends Error {
 }
 
 /**
- * Answers one portal API call. Every route needs a valid Cognito ID token; what it returns
+ * Answers one portal API call. Every route needs a valid Firebase ID token; what it returns
  * depends on whether the token's email is on the Owners tab (and whether that owner is an Admin).
  *
  * Routes:

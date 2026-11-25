@@ -1,88 +1,55 @@
-// The login page: sign in, create an account, confirm the emailed code, reset a password.
-import { confirmForgotPassword, confirmSignUp, forgotPassword, isSignedIn, loadConfig, resendCode, signIn, signUp } from './auth.js';
+// The login page: sign in (Google, Facebook or email), create an account, reset a password.
+import { forgotPassword, isSignedIn, loadConfig, signIn, signInWithFacebook, signInWithGoogle, signUp } from './auth.js';
 
-const PANELS = ['signin', 'signup', 'confirm', 'forgot', 'reset'];
-/** Remembered between steps so a new account signs in right after its code is confirmed. */
-const pending = { email: '', password: '' };
+const PANELS = ['signin', 'signup', 'check', 'forgot'];
 
 /**
  * Wires up the page once it has loaded.
  */
-function main() {
-  if (isSignedIn()) {
-    location.replace('/portal.html');
-    return;
-  }
-  loadConfig().catch((error) => showMessage(error.message, 'error'));
+async function main() {
   for (const button of document.querySelectorAll('[data-show]')) {
     button.addEventListener('click', () => show(button.dataset.show));
   }
   handle('signin-form', async (form) => {
-    pending.email = form.email.value;
-    pending.password = form.password.value;
     try {
-      await signIn(pending.email, pending.password);
-      location.assign('/portal.html');
+      await signIn(form.email.value, form.password.value);
     } catch (error) {
-      if (error.code === 'UserNotConfirmedException') {
-        const since = Date.now();
-        await resendCode(pending.email);
-        logDevCode(pending.email, since);
-        showConfirm('Please confirm your email first. We just sent you a new code.');
-        return;
+      if (error.code === 'auth/unverified') {
+        logDevLink(form.email.value);
       }
       throw error;
     }
+    location.assign('/portal.html');
   });
   handle('signup-form', async (form) => {
-    pending.email = form.email.value;
-    pending.password = form.password.value;
-    const since = Date.now();
-    await signUp(pending.email, pending.password);
-    logDevCode(pending.email, since);
-    showConfirm();
-  });
-  handle('confirm-form', async (form) => {
-    await confirmSignUp(pending.email, form.code.value);
-    if (pending.password) {
-      await signIn(pending.email, pending.password);
-      location.assign('/portal.html');
-      return;
-    }
-    show('signin');
-    showMessage('Email confirmed. Please sign in.', 'info');
+    await signUp(form.email.value, form.password.value);
+    logDevLink(form.email.value);
+    showCheck(form.email.value);
   });
   handle('forgot-form', async (form) => {
-    pending.email = form.email.value;
-    const since = Date.now();
-    await forgotPassword(pending.email);
-    logDevCode(pending.email, since);
-    document.getElementById('reset-email').textContent = pending.email.trim().toLowerCase();
-    show('reset');
-    showMessage('If that email has an account, a code is on its way.', 'info');
+    await forgotPassword(form.email.value);
+    logDevLink(form.email.value);
+    showCheck(form.email.value);
+    showMessage('If that email has an account, a reset link is on its way.', 'info');
   });
-  handle('reset-form', async (form) => {
-    await confirmForgotPassword(pending.email, form.code.value, form.password.value);
-    show('signin');
-    document.querySelector('#signin-form [name=email]').value = pending.email;
-    showMessage('Password saved. Please sign in.', 'info');
-  });
-  document.getElementById('resend').addEventListener('click', async () => {
-    try {
-      const since = Date.now();
-      await resendCode(pending.email);
-      logDevCode(pending.email, since);
-      showMessage('A new code is on its way.', 'info');
-    } catch (error) {
-      showMessage(error.message, 'error');
+  handleProvider('google-signin', signInWithGoogle);
+  handleProvider('facebook-signin', signInWithFacebook);
+  if (new URLSearchParams(location.search).has('confirmed')) {
+    showMessage('Thanks — you’re all set. Please sign in.', 'info');
+  }
+  try {
+    if (await isSignedIn()) {
+      location.replace('/portal.html');
     }
-  });
+  } catch (error) {
+    showMessage(error.message, 'error');
+  }
 }
 
 /**
  * Runs a form's action on submit, disabling its button and showing any error.
  * @param {string} id the form id
- * @param {(form: HTMLFormElement) => Promise<void>} action what to do
+ * @param {(form: HTMLFormControlsCollection) => Promise<void>} action what to do
  */
 function handle(id, action) {
   const form = document.getElementById(id);
@@ -102,40 +69,62 @@ function handle(id, action) {
 }
 
 /**
- * On `npm run dev` only (its config sets devCodes), prints the code cognito-local "emailed" in
- * the browser console, since nothing is really emailed locally. Polls briefly because the dev
- * server reads the code from Docker's log a moment after Cognito answers. Does nothing deployed.
- * @param {string} email the address the code went to
- * @param {number} since only a code sent at or after this time (ms) counts, not an older one
+ * Wires a "Sign in with …" button. On success it opens the portal; a new account whose email
+ * still needs confirming sees the "check your email" panel.
+ * @param {string} id the button id
+ * @param {() => Promise<void>} signInWith the provider's sign-in
  */
-async function logDevCode(email, since) {
-  const config = await loadConfig();
-  if (config.devCodes !== 'true') {
-    return;
-  }
-  const address = email.trim().toLowerCase();
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    const response = await fetch(`/dev/code?email=${encodeURIComponent(address)}`, { cache: 'no-store' });
-    const found = await response.json();
-    if (found.code && found.sentAt >= since - 1000) {
-      console.log(`%cLocal dev: code for ${address} is ${found.code}`, 'font-size: 16px; font-weight: bold');
-      return;
+function handleProvider(id, signInWith) {
+  const button = document.getElementById(id);
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    hideMessage();
+    try {
+      await signInWith();
+      location.assign('/portal.html');
+    } catch (error) {
+      if (error.code === 'auth/unverified' && error.email) {
+        // A normal first step, not a failure: the "check your email" panel says it all.
+        logDevLink(error.email);
+        showCheck(error.email);
+        return;
+      }
+      showMessage(error.message, 'error');
+    } finally {
+      button.disabled = false;
     }
-    await new Promise((wait) => setTimeout(wait, 250));
-  }
-  console.log(`Local dev: no code showed up for ${address}. If the account doesn't exist, none is sent.`);
+  });
 }
 
 /**
- * Shows the code step for the remembered email.
- * @param {string} [note] an extra message to show
+ * On `npm run dev` only (its config names the Auth emulator), prints the newest link the
+ * emulator "emailed" to this address in the browser console, since nothing is really emailed
+ * locally. Does nothing deployed.
+ * @param {string} email the address the link went to
  */
-function showConfirm(note) {
-  document.getElementById('confirm-email').textContent = pending.email.trim().toLowerCase();
-  show('confirm');
-  if (note) {
-    showMessage(note, 'info');
+async function logDevLink(email) {
+  try {
+    const config = await loadConfig();
+    if (!config.emulatorUrl) {
+      return;
+    }
+    const address = email.trim().toLowerCase();
+    const response = await fetch(`${config.emulatorUrl}/emulator/v1/projects/${config.projectId}/oobCodes`, { cache: 'no-store' });
+    const { oobCodes = [] } = await response.json();
+    const latest = oobCodes.filter((entry) => entry.email === address).pop();
+    console.log(latest ? `%cLocal dev: link for ${address}: ${latest.oobLink}` : `Local dev: no link for ${address}.`, 'font-size: 14px; font-weight: bold');
+  } catch (error) {
+    console.log('Local dev: could not read the emulator’s emailed links.', error);
   }
+}
+
+/**
+ * Shows the "check your email" step.
+ * @param {string} email where the link went
+ */
+function showCheck(email) {
+  document.getElementById('check-email').textContent = email.trim().toLowerCase();
+  show('check');
 }
 
 /**

@@ -1,9 +1,0 @@
-{
-  "app": "npx tsx bin/app.ts",
-  "context": {
-    "account": "692580093266",
-    "region": "us-east-1",
-    "domainName": "",
-    "boardMessages": false
-  }
-}

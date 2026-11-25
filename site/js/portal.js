@@ -18,12 +18,12 @@ let boardEmail = '';
  * Loads the account and shows the right view.
  */
 async function main() {
-  if (!isSignedIn()) {
+  if (!(await isSignedIn().catch(() => false))) {
     goToLogin();
     return;
   }
-  document.getElementById('sign-out').addEventListener('click', () => {
-    signOut();
+  document.getElementById('sign-out').addEventListener('click', async () => {
+    await signOut();
     location.assign('/');
   });
   try {

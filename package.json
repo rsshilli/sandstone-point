@@ -1,28 +1,24 @@
 {
   "name": "sandstone-point",
   "version": "1.0.0",
-  "description": "Sandstone Point HOA website and resident portal (AWS CDK)",
+  "description": "Sandstone Point HOA website and resident portal (Firebase on Google Cloud)",
   "scripts": {
     "start": "tsx scripts/serve.ts",
     "dev": "tsx scripts/dev.ts",
     "dev:fake": "tsx scripts/dev.ts --fake",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "synth": "cdk synth",
-    "deploy": "cdk deploy --profile sandstone --require-approval never"
+    "build:function": "tsx scripts/build-function.ts",
+    "deploy": "tsx scripts/deploy.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-secrets-manager": "^3.1175.0",
-    "@aws-sdk/client-sesv2": "^3.1175.0",
-    "aws-cdk-lib": "^2.278.0",
-    "constructs": "^10.8.1",
     "jose": "^6.2.18"
   },
   "devDependencies": {
-    "@aws-sdk/client-cognito-identity-provider": "^3.1175.0",
     "@types/node": "^26.6.6",
-    "aws-cdk": "^2.1149.0",
     "esbuild": "^0.28.2",
+    "firebase-functions": "^7.4.0",
+    "firebase-tools": "^15.37.0",
     "happy-dom": "^21.0.4",
     "leaflet": "^1.9.4",
     "tsx": "^4.23.15",

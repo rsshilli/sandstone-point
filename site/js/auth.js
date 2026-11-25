@@ -1,14 +1,33 @@
-// Owner login: talks straight to Amazon Cognito (or cognito-local when running `npm run dev`).
-// Where Cognito lives comes from /config.json, written at deploy time. Tokens are kept in
-// sessionStorage, so closing the tab signs you out.
+// Owner login: Firebase Authentication (or its local emulator when running `npm run dev`).
+// The project's public web settings come from /config.json, written at deploy time. The sign-in
+// is kept for this tab only, so closing the tab signs you out.
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/13.4.0/firebase-app.js';
+import {
+  browserSessionPersistence,
+  connectAuthEmulator,
+  createUserWithEmailAndPassword,
+  FacebookAuthProvider,
+  GoogleAuthProvider,
+  initializeAuth,
+  browserPopupRedirectResolver,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut as firebaseSignOut,
+} from 'https://www.gstatic.com/firebasejs/13.4.0/firebase-auth.js';
 
-const TOKENS_KEY = 'sandstone.tokens';
+/** Passwords need 10+ characters with upper and lower case letters and a number. */
+const PASSWORD_RULE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{10,}$/;
+const PASSWORD_HINT = 'Passwords need at least 10 characters, with upper and lower case letters and a number.';
+
 let configPromise;
+let authPromise;
 
-/** A Cognito error with a plain-words message. */
+/** A login problem with a plain-words message. */
 export class LoginError extends Error {
   /**
-   * @param {string} code Cognito's error name, e.g. "NotAuthorizedException"
+   * @param {string} code Firebase's error code, e.g. "auth/invalid-credential"
    * @param {string} message text safe to show
    */
   constructor(code, message) {
@@ -19,7 +38,7 @@ export class LoginError extends Error {
 
 /**
  * Loads /config.json once.
- * @returns {Promise<{region: string, userPoolId: string, clientId: string, cognitoEndpoint: string}>}
+ * @returns {Promise<{apiKey: string, authDomain: string, projectId: string, emulatorUrl?: string}>}
  */
 export function loadConfig() {
   configPromise ??= fetch('/config.json', { cache: 'no-store' }).then((response) => {
@@ -32,105 +51,97 @@ export function loadConfig() {
 }
 
 /**
- * Signs in with email and password and keeps the tokens.
+ * Signs in with email and password. An account whose email isn't confirmed yet gets a fresh
+ * confirmation link and stays signed out.
  * @param {string} email
  * @param {string} password
  */
 export async function signIn(email, password) {
-  const config = await loadConfig();
-  let result;
-  try {
-    result = await cognito('InitiateAuth', {
-      AuthFlow: 'USER_PASSWORD_AUTH',
-      ClientId: config.clientId,
-      AuthParameters: { USERNAME: normalise(email), PASSWORD: password },
-    });
-  } catch (error) {
-    // cognito-local answers a wrong password with InvalidPasswordException; AWS with NotAuthorizedException.
-    if (error.code === 'InvalidPasswordException') {
-      throw new LoginError('NotAuthorizedException', friendlyMessage('NotAuthorizedException'));
-    }
-    throw error;
-  }
-  if (!result.AuthenticationResult) {
-    throw new LoginError('Challenge', 'This account needs a step the website does not support yet. Please contact the board.');
-  }
-  saveTokens(result.AuthenticationResult);
+  const auth = await getAuthReady();
+  const { user } = await friendly(() => signInWithEmailAndPassword(auth, normalise(email), password));
+  await requireConfirmedEmail(auth, user);
 }
 
 /**
- * Creates an account. Cognito then emails a 6-digit code.
+ * Signs in with a Google account in a pop-up window. Google has already confirmed the email.
+ */
+export async function signInWithGoogle() {
+  const auth = await getAuthReady();
+  await friendly(() => signInWithPopup(auth, new GoogleAuthProvider()));
+}
+
+/**
+ * Signs in with a Facebook account in a pop-up window. Firebase does not count Facebook as having
+ * confirmed the email, so the first time we email a link, exactly as for a password account.
+ */
+export async function signInWithFacebook() {
+  const auth = await getAuthReady();
+  const provider = new FacebookAuthProvider();
+  provider.addScope('email');
+  const { user } = await friendly(() => signInWithPopup(auth, provider));
+  if (!user.email) {
+    await user.delete().catch(() => firebaseSignOut(auth));
+    throw new LoginError('auth/no-email', 'Facebook didn’t share an email address, and we need one to find your lots. Please use Google or your email instead.');
+  }
+  await requireConfirmedEmail(auth, user);
+}
+
+/**
+ * Creates an account and emails a confirmation link. The new account stays signed out until
+ * the link is clicked.
  * @param {string} email
  * @param {string} password
  */
 export async function signUp(email, password) {
-  const config = await loadConfig();
-  await cognito('SignUp', {
-    ClientId: config.clientId,
-    Username: normalise(email),
-    Password: password,
-    UserAttributes: [{ Name: 'email', Value: normalise(email) }],
-  });
+  if (!PASSWORD_RULE.test(password)) {
+    throw new LoginError('auth/weak-password', PASSWORD_HINT);
+  }
+  const auth = await getAuthReady();
+  const { user } = await friendly(() => createUserWithEmailAndPassword(auth, normalise(email), password));
+  try {
+    await friendly(() => sendEmailVerification(user, continueSettings()));
+  } finally {
+    // If the email failed, signing in later sends a fresh link.
+    await firebaseSignOut(auth);
+  }
 }
 
 /**
- * Confirms a new account with the emailed code.
- * @param {string} email
- * @param {string} code
- */
-export async function confirmSignUp(email, code) {
-  const config = await loadConfig();
-  await cognito('ConfirmSignUp', { ClientId: config.clientId, Username: normalise(email), ConfirmationCode: code.trim() });
-}
-
-/**
- * Emails a new sign-up code.
- * @param {string} email
- */
-export async function resendCode(email) {
-  const config = await loadConfig();
-  await cognito('ResendConfirmationCode', { ClientId: config.clientId, Username: normalise(email) });
-}
-
-/**
- * Emails a password-reset code.
+ * Emails a password-reset link. Says nothing about whether the account exists.
  * @param {string} email
  */
 export async function forgotPassword(email) {
-  const config = await loadConfig();
-  await cognito('ForgotPassword', { ClientId: config.clientId, Username: normalise(email) });
+  const auth = await getAuthReady();
+  try {
+    await sendPasswordResetEmail(auth, normalise(email), continueSettings());
+  } catch (error) {
+    if (error.code !== 'auth/user-not-found') {
+      throw toLoginError(error);
+    }
+  }
+}
+
+/** Signs out on this device. */
+export async function signOut() {
+  await firebaseSignOut(await getAuthReady());
+}
+
+/** @returns {Promise<boolean>} whether someone with a confirmed email is signed in */
+export async function isSignedIn() {
+  const user = (await getAuthReady()).currentUser;
+  return Boolean(user?.emailVerified);
 }
 
 /**
- * Sets a new password using the emailed reset code.
- * @param {string} email
- * @param {string} code
- * @param {string} password
- */
-export async function confirmForgotPassword(email, code, password) {
-  const config = await loadConfig();
-  await cognito('ConfirmForgotPassword', { ClientId: config.clientId, Username: normalise(email), ConfirmationCode: code.trim(), Password: password });
-}
-
-/** Forgets the tokens on this device. */
-export function signOut() {
-  sessionStorage.removeItem(TOKENS_KEY);
-}
-
-/** @returns {boolean} whether tokens are stored */
-export function isSignedIn() {
-  return sessionStorage.getItem(TOKENS_KEY) !== null;
-}
-
-/**
- * Calls the portal API with the ID token, refreshing it first when it is about to expire.
+ * Calls the portal API with the ID token (Firebase refreshes it when needed).
  * Sends the visitor to the login page when the sign-in is no longer valid.
  * @param {string} path e.g. "/api/me"
  * @param {{method?: string, body?: unknown}} [options]
  * @returns {Promise<any>} the JSON body
  */
 export async function api(path, options = {}) {
-  const token = await currentIdToken();
+  const user = (await getAuthReady()).currentUser;
+  const token = user ? await user.getIdToken().catch(() => null) : null;
   if (!token) {
     goToLogin();
     throw new LoginError('SignedOut', 'Please sign in.');
@@ -143,7 +154,7 @@ export async function api(path, options = {}) {
   });
   const body = await response.json().catch(() => ({}));
   if (response.status === 401) {
-    signOut();
+    await signOut();
     goToLogin();
   }
   if (!response.ok) {
@@ -158,88 +169,91 @@ export function goToLogin() {
 }
 
 /**
- * Returns a usable ID token, refreshing it with the refresh token when under a minute is left.
- * @returns {Promise<string|null>}
+ * Starts Firebase once and waits until it knows whether someone is signed in.
+ * @returns {Promise<import('https://www.gstatic.com/firebasejs/13.4.0/firebase-auth.js').Auth>}
  */
-async function currentIdToken() {
-  const stored = JSON.parse(sessionStorage.getItem(TOKENS_KEY) ?? 'null');
-  if (!stored) {
-    return null;
-  }
-  if (stored.expiresAt - Date.now() > 60_000) {
-    return stored.idToken;
+function getAuthReady() {
+  authPromise ??= loadConfig().then(async (config) => {
+    const app = initializeApp({ apiKey: config.apiKey, authDomain: config.authDomain, projectId: config.projectId });
+    const auth = initializeAuth(app, { persistence: browserSessionPersistence, popupRedirectResolver: browserPopupRedirectResolver });
+    if (config.emulatorUrl) {
+      connectAuthEmulator(auth, config.emulatorUrl, { disableWarnings: true });
+    }
+    await auth.authStateReady();
+    return auth;
+  });
+  return authPromise;
+}
+
+/**
+ * Lets a confirmed account stay signed in. An unconfirmed one gets a fresh confirmation link and
+ * is signed out.
+ * @param {import('https://www.gstatic.com/firebasejs/13.4.0/firebase-auth.js').Auth} auth
+ * @param {import('https://www.gstatic.com/firebasejs/13.4.0/firebase-auth.js').User} user the account just signed in
+ */
+async function requireConfirmedEmail(auth, user) {
+  if (user.emailVerified) {
+    return;
   }
   try {
-    const config = await loadConfig();
-    const result = await cognito('InitiateAuth', {
-      AuthFlow: 'REFRESH_TOKEN_AUTH',
-      ClientId: config.clientId,
-      AuthParameters: { REFRESH_TOKEN: stored.refreshToken },
-    });
-    saveTokens({ ...result.AuthenticationResult, RefreshToken: stored.refreshToken });
-    return result.AuthenticationResult.IdToken;
-  } catch {
-    signOut();
-    return null;
+    await friendly(() => sendEmailVerification(user, continueSettings()));
+  } finally {
+    // Never leave an unconfirmed account signed in, even if the email couldn't be sent.
+    await firebaseSignOut(auth);
   }
+  const error = new LoginError('auth/unverified', `Please confirm your email first. We just sent a link to ${user.email}.`);
+  error.email = user.email;
+  throw error;
 }
 
 /**
- * Stores the tokens from a Cognito AuthenticationResult.
- * @param {{IdToken: string, RefreshToken?: string, ExpiresIn: number}} result
+ * Where an emailed link sends people back to: the login page, which then says they're confirmed.
+ * @returns {{url: string}}
  */
-function saveTokens(result) {
-  sessionStorage.setItem(
-    TOKENS_KEY,
-    JSON.stringify({ idToken: result.IdToken, refreshToken: result.RefreshToken, expiresAt: Date.now() + result.ExpiresIn * 1000 }),
-  );
+function continueSettings() {
+  return { url: `${location.origin}/login.html?confirmed=1` };
 }
 
 /**
- * Calls one Cognito action.
- * @param {string} action e.g. "InitiateAuth"
- * @param {object} payload the request
- * @returns {Promise<any>} the response
+ * Runs a Firebase call and turns its errors into plain words.
+ * @template T
+ * @param {() => Promise<T>} action the call
+ * @returns {Promise<T>}
  */
-async function cognito(action, payload) {
-  const config = await loadConfig();
-  let response;
+async function friendly(action) {
   try {
-    response = await fetch(config.cognitoEndpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-amz-json-1.1', 'X-Amz-Target': `AWSCognitoIdentityProviderService.${action}` },
-      body: JSON.stringify(payload),
-    });
-  } catch {
-    throw new LoginError('Network', 'Could not reach the login service. Check your connection and try again.');
+    return await action();
+  } catch (error) {
+    throw toLoginError(error);
   }
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const code = String(body.__type ?? 'Unknown').split('#').pop();
-    throw new LoginError(code, friendlyMessage(code, body.message));
-  }
-  return body;
 }
 
 /**
- * Turns a Cognito error into plain words.
- * @param {string} code Cognito's error name
- * @param {string|undefined} message Cognito's own message
- * @returns {string}
+ * Turns a Firebase error into a LoginError with plain words.
+ * @param {{code?: string, message?: string}} error
+ * @returns {LoginError}
  */
-function friendlyMessage(code, message) {
+function toLoginError(error) {
   const messages = {
-    NotAuthorizedException: 'That email and password don’t match.',
-    UserNotFoundException: 'That email and password don’t match.',
-    UserNotConfirmedException: 'Please confirm your email first. We sent you a code.',
-    UsernameExistsException: 'There is already an account for that email. Sign in, or reset your password.',
-    CodeMismatchException: 'That code isn’t right. Check the email and try again.',
-    ExpiredCodeException: 'That code has expired. Ask for a new one.',
-    LimitExceededException: 'Too many tries. Please wait a few minutes and try again.',
-    TooManyRequestsException: 'Too many tries. Please wait a few minutes and try again.',
-    InvalidPasswordException: 'Passwords need at least 10 characters, with upper and lower case letters and a number.',
+    'auth/invalid-credential': 'That email and password don’t match.',
+    'auth/invalid-login-credentials': 'That email and password don’t match.',
+    'auth/wrong-password': 'That email and password don’t match.',
+    'auth/user-not-found': 'That email and password don’t match.',
+    'auth/invalid-email': 'That doesn’t look like an email address.',
+    'auth/email-already-in-use': 'There is already an account for that email. Sign in, or reset your password.',
+    'auth/account-exists-with-different-credential': 'That email already has an account here. Sign in the way you did before (Google, or your email and password).',
+    'auth/weak-password': PASSWORD_HINT,
+    'auth/password-does-not-meet-requirements': PASSWORD_HINT,
+    'auth/too-many-requests': 'Too many tries. Please wait a few minutes and try again.',
+    'auth/network-request-failed': 'Could not reach the login service. Check your connection and try again.',
+    'auth/popup-closed-by-user': 'The sign-in window was closed before signing in finished.',
+    'auth/cancelled-popup-request': 'The sign-in window was closed before signing in finished.',
+    'auth/popup-blocked': 'Your browser blocked the sign-in window. Allow pop-ups for this site and try again.',
+    'auth/operation-not-allowed': 'That way of signing in isn’t switched on yet. Please use your email instead.',
+    'auth/user-disabled': 'This account has been switched off. Please contact the board.',
   };
-  return messages[code] ?? message ?? 'Something went wrong. Please try again.';
+  const code = error?.code ?? 'Unknown';
+  return new LoginError(code, messages[code] ?? 'Something went wrong. Please try again.');
 }
 
 /**

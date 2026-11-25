@@ -11,10 +11,16 @@ yarn-error.log*
 .vscode/*
 .agent-errors.jsonl
 
-# CDK
+# Old AWS CDK build output (the AWS version is retired)
 cdk.out/
-.cdk.staging/
-cdk.context.json.bak
+
+# Firebase: the built API bundle, its packages, the deploy-time settings and the login config
+functions/lib/
+functions/node_modules/
+functions/.env*
+site/config.json
+.firebase/
+firebase-debug*.log
 
 # Raw originals of neighbors' photos (one shows a readable license plate). The cleaned,
 # published copies live in site/assets/.
@@ -31,6 +37,6 @@ supplemental-materials/
 .playwright-mcp/
 .github/GOOGLE_SERVICE_ACCOUNT_SETUP.md
 
-# Local cognito-local data and the local copy of the fake sheet
+# Old cognito-local data and the local copy of the fake sheet
 .cognito/
 .local/

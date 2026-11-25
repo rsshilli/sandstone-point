@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { generateKeyPairSync } from 'node:crypto';
 import { GoogleSheetSource } from '../lib/portal/google-sheet';
-import { CachedSheetSource } from '../lib/portal/lambda';
+import { CachedSheetSource } from '../lib/portal/cached-sheet';
 import type { SheetValues } from '../lib/portal/sheet';
 
 const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
@@ -50,6 +50,23 @@ describe('Google Sheets source', () => {
     expect(read.pathname).toBe('/v4/spreadsheets/SHEET123/values:batchGet');
     expect(read.searchParams.getAll('ranges')).toEqual(['Owners!A2:K', 'Lots!A2:J', 'Payments!A2:G', "'Sign-up requests'!A2:I"]);
     expect(read.searchParams.get('valueRenderOption')).toBe('UNFORMATTED_VALUE');
+  });
+
+  it('should get its token from the metadata server, with the Sheets scope, when no key is configured', async () => {
+    const seen: { url: string; headers: Record<string, string> }[] = [];
+    const fetchFn = (async (input: string | URL | Request, init?: RequestInit) => {
+      seen.push({ url: String(input), headers: (init?.headers ?? {}) as Record<string, string> });
+      if (String(input).startsWith('http://metadata.google.internal/')) {
+        return new Response(JSON.stringify({ access_token: 'meta-tok', expires_in: 3600 }));
+      }
+      return new Response(JSON.stringify({ valueRanges: [{}, {}, {}, {}] }));
+    }) as typeof fetch;
+    await new GoogleSheetSource({ spreadsheetId: 'SHEET123' }, fetchFn).readValues();
+    const token = new URL(seen[0].url);
+    expect(token.pathname).toBe('/computeMetadata/v1/instance/service-accounts/default/token');
+    expect(token.searchParams.get('scopes')).toBe('https://www.googleapis.com/auth/spreadsheets');
+    expect(seen[0].headers['Metadata-Flavor']).toBe('Google');
+    expect(seen[1].headers.Authorization).toBe('Bearer meta-tok');
   });
 
   it('should write every change as RAW text, to the right cells', async () => {

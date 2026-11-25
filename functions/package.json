@@ -1,0 +1,11 @@
+{
+  "name": "sandstone-portal-function",
+  "description": "The deployed portal API. lib/index.js is built from ../lib/portal by scripts/build-function.ts; don't edit it.",
+  "private": true,
+  "main": "lib/index.js",
+  "engines": { "node": "22" },
+  "dependencies": {
+    "firebase-admin": "^14.5.1",
+    "firebase-functions": "7.4.0"
+  }
+}

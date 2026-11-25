@@ -33,26 +33,14 @@ function main(): void {
 
 /** Extras for the full local stack (`npm run dev`); the plain preview (`npm start`) has neither. */
 export interface ServerOptions {
-  /** Answers /api/* (the portal API, as the Lambda does behind CloudFront). */
+  /** Answers /api/* (the portal API, as the Cloud Function does behind Firebase Hosting). */
   api?: (request: ApiRequest) => Promise<ApiResponse>;
-  /** Served as /config.json: where the login page finds Cognito. */
+  /** Served as /config.json: the Firebase web settings (and, locally, the Auth emulator's address). */
   config?: Record<string, string>;
-  /**
-   * Local `npm run dev` only: answers /dev/code?email=… with the last emailed code for that
-   * address, so the login page can print it in the browser console. Never set when deployed.
-   */
-  devCode?: (email: string) => DevCode | undefined;
-}
-
-/** A sign-up or reset code that cognito-local would have emailed. */
-export interface DevCode {
-  code: string;
-  /** When it was sent, in milliseconds since 1970. */
-  sentAt: number;
 }
 
 /**
- * Serves the site/ folder the way CloudFront will: "/" shows index.html, and a missing page
+ * Serves the site/ folder the way Firebase Hosting does: "/" shows index.html, and a missing page
  * shows 404.html with a 404 status. With options it also serves /config.json and /api/*.
  * @param port the port to listen on; 0 picks any free port (used by the tests)
  * @param options the API handler and login config, for the full local stack
@@ -69,11 +57,6 @@ export function startServer(port: number, options: ServerOptions = {}): Server {
     }
     if (options.config && urlPath === '/config.json') {
       sendJson(response, 200, options.config);
-      return;
-    }
-    if (options.devCode && urlPath === '/dev/code') {
-      const email = new URL(request.url ?? '/', 'http://local').searchParams.get('email') ?? '';
-      sendJson(response, 200, options.devCode(email.trim().toLowerCase()) ?? {});
       return;
     }
     if (options.api && urlPath.startsWith('/api/')) {

@@ -2,16 +2,16 @@ import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair, type JWK } from 'jose';
+import { SignJWT, UnsecuredJWT, createLocalJWKSet, exportJWK, generateKeyPair, type JWK } from 'jose';
 import { handleApiRequest, SendLimiter, type ApiDeps } from '../lib/portal/api';
-import { SesBoardMailer, type BoardMessage } from '../lib/portal/mailer';
+import { ResendBoardMailer, type BoardMessage } from '../lib/portal/mailer';
 import { createTokenVerifier } from '../lib/portal/auth';
 import { FileSheetSource } from '../lib/portal/file-sheet';
 import { parseSheet, type SheetValues } from '../lib/portal/sheet';
 
 const SEED = join(__dirname, '..', 'dev', 'fake-sheet.json');
-const ISSUER = 'https://cognito-idp.us-east-1.amazonaws.com/us-east-1_TEST';
-const CLIENT_ID = 'test-client';
+const PROJECT_ID = 'test-project';
+const ISSUER = `https://securetoken.google.com/${PROJECT_ID}`;
 
 let privateKey: CryptoKey;
 let jwk: JWK;
@@ -19,16 +19,16 @@ let workingFile: string;
 let deps: ApiDeps;
 
 /**
- * Signs a Cognito-style ID token with the test key.
+ * Signs a Firebase-style ID token with the test key.
  * @param email the token's email
  * @param overrides claims to change (e.g. a different audience)
  * @returns the "Bearer ..." header value
  */
 async function bearer(email: string, overrides: Record<string, unknown> = {}): Promise<string> {
-  const token = await new SignJWT({ email, email_verified: true, token_use: 'id', ...overrides })
+  const token = await new SignJWT({ email, email_verified: true, ...overrides })
     .setProtectedHeader({ alg: 'RS256', kid: 'test' })
     .setIssuer((overrides.iss as string) ?? ISSUER)
-    .setAudience((overrides.aud as string) ?? CLIENT_ID)
+    .setAudience((overrides.aud as string) ?? PROJECT_ID)
     .setSubject(`sub-${email}`)
     .setIssuedAt()
     .setExpirationTime('1h')
@@ -70,7 +70,7 @@ describe('portal API', () => {
     workingFile = join(mkdtempSync(join(tmpdir(), 'portal-')), 'sheet.json');
     deps = {
       source: new FileSheetSource(workingFile, SEED),
-      verifier: createTokenVerifier({ issuer: ISSUER, clientId: CLIENT_ID, requireVerifiedEmail: true, keys: createLocalJWKSet({ keys: [jwk] }) }),
+      verifier: createTokenVerifier({ projectId: PROJECT_ID, requireVerifiedEmail: true, keys: createLocalJWKSet({ keys: [jwk] }) }),
       now: () => new Date('2026-11-22T15:00:00Z'),
     };
   });
@@ -83,6 +83,25 @@ describe('portal API', () => {
     expect((await handleApiRequest({ method: 'GET', path: '/api/me', authorization: unverified }, deps)).status).toBe(401);
     const forged = (await bearer('owner@example.com')).slice(0, -4) + 'AAAA';
     expect((await handleApiRequest({ method: 'GET', path: '/api/me', authorization: forged }, deps)).status).toBe(401);
+    const otherIssuer = await bearer('owner@example.com', { iss: 'https://securetoken.google.com/another-project' });
+    expect((await handleApiRequest({ method: 'GET', path: '/api/me', authorization: otherIssuer }, deps)).status).toBe(401);
+  });
+
+  it('should refuse an unsigned emulator token unless the verifier is in local emulator mode', async () => {
+    const unsigned = `Bearer ${new UnsecuredJWT({ email: 'owner@example.com', email_verified: true }).setIssuer(ISSUER).setAudience(PROJECT_ID).setSubject('u1').setIssuedAt().setExpirationTime('1h').encode()}`;
+    expect((await handleApiRequest({ method: 'GET', path: '/api/me', authorization: unsigned }, deps)).status).toBe(401);
+    const demo = 'demo-test';
+    const emulatorDeps = { ...deps, verifier: createTokenVerifier({ projectId: demo, requireVerifiedEmail: true, emulator: true }) };
+    const emulatorToken = (exp: number | string) =>
+      `Bearer ${new UnsecuredJWT({ email: 'owner@example.com', email_verified: true }).setIssuer(`https://securetoken.google.com/${demo}`).setAudience(demo).setSubject('u1').setExpirationTime(exp).encode()}`;
+    expect((await handleApiRequest({ method: 'GET', path: '/api/me', authorization: emulatorToken('1h') }, emulatorDeps)).status).toBe(200);
+    expect((await handleApiRequest({ method: 'GET', path: '/api/me', authorization: emulatorToken(Math.floor(Date.now() / 1000) - 60) }, emulatorDeps)).status).toBe(401);
+    // A token for the real project is refused even in emulator mode.
+    expect((await handleApiRequest({ method: 'GET', path: '/api/me', authorization: unsigned }, emulatorDeps)).status).toBe(401);
+  });
+
+  it('should refuse to build an emulator-mode verifier for anything but a demo- project', () => {
+    expect(() => createTokenVerifier({ projectId: 'sandstone-point-hoa', requireVerifiedEmail: true, emulator: true })).toThrow('only allowed for a demo- project');
   });
 
   it('should show an owner their lots, balance worked out from the payments, and gate code', async () => {
@@ -325,7 +344,7 @@ describe('portal API', () => {
   it('should not count a board message against the owner’s limit when the email fails', async () => {
     let failing = true;
     const sent: BoardMessage[] = [];
-    deps.mailer = { send: async (message) => { if (failing) { throw new Error('SES said no'); } sent.push(message); } };
+    deps.mailer = { send: async (message) => { if (failing) { throw new Error('Resend said no'); } sent.push(message); } };
     deps.messageLimiter = new SendLimiter(1, 60_000);
     expect((await call('POST', '/api/messages', 'owner@example.com', { message: 'first try' })).status).toBe(500);
     failing = false;
@@ -359,17 +378,26 @@ describe('SendLimiter', () => {
   });
 });
 
-describe('SesBoardMailer', () => {
+describe('ResendBoardMailer', () => {
+  const config = { from: 'Site <web@example.org>', to: 'board@example.org', apiKey: 're_test' };
+
   it('should send plain text from the HOA address to the list, with Reply-To set to the owner', async () => {
-    const commands: any[] = [];
-    const mailer = new SesBoardMailer({ from: 'Site <web@example.org>', to: 'board@example.org', region: 'us-east-1' }, { send: async (command: any) => commands.push(command) } as any);
-    await mailer.send({ subject: 'S', text: 'T', replyTo: 'owner@example.com' });
-    expect(commands[0].input).toEqual({
-      FromEmailAddress: 'Site <web@example.org>',
-      Destination: { ToAddresses: ['board@example.org'] },
-      ReplyToAddresses: ['owner@example.com'],
-      Content: { Simple: { Subject: { Data: 'S', Charset: 'UTF-8' }, Body: { Text: { Data: 'T', Charset: 'UTF-8' } } } },
-    });
+    const calls: { url: string; init: RequestInit }[] = [];
+    const fetchFn = (async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return new Response(JSON.stringify({ id: 'msg-1' }), { status: 200 });
+    }) as unknown as typeof fetch;
+    await new ResendBoardMailer(config, fetchFn).send({ subject: 'S', text: 'T', replyTo: 'owner@example.com' });
+    expect(calls[0].url).toBe('https://api.resend.com/emails');
+    expect((calls[0].init.headers as Record<string, string>).Authorization).toBe('Bearer re_test');
+    expect(JSON.parse(calls[0].init.body as string)).toEqual({ from: 'Site <web@example.org>', to: ['board@example.org'], reply_to: 'owner@example.com', subject: 'S', text: 'T' });
+  });
+
+  it('should fail when Resend refuses the message or answers without a message id', async () => {
+    const refusing = (async () => new Response(JSON.stringify({ message: 'domain not verified' }), { status: 403 })) as unknown as typeof fetch;
+    await expect(new ResendBoardMailer(config, refusing).send({ subject: 'S', text: 'T', replyTo: 'o@example.com' })).rejects.toThrow('403 domain not verified');
+    const idless = (async () => new Response('{}', { status: 200 })) as unknown as typeof fetch;
+    await expect(new ResendBoardMailer(config, idless).send({ subject: 'S', text: 'T', replyTo: 'o@example.com' })).rejects.toThrow('Resend refused');
   });
 });
 

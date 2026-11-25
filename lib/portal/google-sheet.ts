@@ -1,22 +1,28 @@
 import { createSign } from 'node:crypto';
 import { READ_RANGES, TABS, type Cell, type NewSignupRequest, type OwnerContact, type SheetSource, type SheetValues } from './sheet';
 
-/** The service account key fields we use, plus which spreadsheet to open. */
+/**
+ * Which spreadsheet to open, and optionally a service account key. Without a key, the token
+ * comes from the Google Cloud server the code runs on (the function runs as the HOA's robot
+ * account, so no key is stored anywhere).
+ */
 export interface GoogleSheetConfig {
   spreadsheetId: string;
   /** The service account's email (`client_email` in its JSON key). */
-  client_email: string;
+  client_email?: string;
   /** The service account's PEM private key (`private_key` in its JSON key). */
-  private_key: string;
+  private_key?: string;
 }
 
 const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
+/** Google Cloud's metadata server: hands out tokens for the account a function runs as. */
+const METADATA_TOKEN_URL = 'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token';
 const SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
 /**
  * Each Google call gives up after this long. Sheet reads are live inside the API request (a
  * neighbourhood-sized sheet answers in about a second), so this keeps a slow Google well inside
- * the Lambda's 15 s and CloudFront's 60 s limits and shows a clear error instead of a hang.
+ * the function's 30 s limit and shows a clear error instead of a hang.
  */
 const GOOGLE_TIMEOUT_MS = 8_000;
 
@@ -114,19 +120,25 @@ export class GoogleSheetSource implements SheetSource {
   }
 
   /**
-   * Gets (and caches until a minute before expiry) an OAuth access token for the service account.
+   * Gets (and caches until a minute before expiry) an OAuth access token for the service account:
+   * from its key when one is configured, otherwise from the metadata server.
    * @returns the bearer token
    */
   private async accessToken(): Promise<string> {
     if (this.token && this.token.expires > Date.now() + 60_000) {
       return this.token.value;
     }
-    const response = await this.fetchFn(TOKEN_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: this.signedAssertion() }),
-      signal: AbortSignal.timeout(GOOGLE_TIMEOUT_MS),
-    });
+    const response = this.config.private_key
+      ? await this.fetchFn(TOKEN_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: this.signedAssertion(this.config.private_key) }),
+          signal: AbortSignal.timeout(GOOGLE_TIMEOUT_MS),
+        })
+      : await this.fetchFn(`${METADATA_TOKEN_URL}?scopes=${encodeURIComponent(SCOPE)}`, {
+          headers: { 'Metadata-Flavor': 'Google' },
+          signal: AbortSignal.timeout(GOOGLE_TIMEOUT_MS),
+        });
     if (!response.ok) {
       throw new Error(`Google token request failed: ${response.status} ${(await response.text()).slice(0, 300)}`);
     }
@@ -137,15 +149,16 @@ export class GoogleSheetSource implements SheetSource {
 
   /**
    * Builds the signed JWT Google exchanges for an access token (RS256, one hour).
+   * @param privateKey the service account's PEM key
    * @returns the compact JWT
    */
-  private signedAssertion(): string {
+  private signedAssertion(privateKey: string): string {
     const now = Math.floor(Date.now() / 1000);
     const header = base64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
     const claims = base64url(JSON.stringify({ iss: this.config.client_email, scope: SCOPE, aud: TOKEN_URL, iat: now, exp: now + 3600 }));
     const signer = createSign('RSA-SHA256');
     signer.update(`${header}.${claims}`);
-    return `${header}.${claims}.${signer.sign(this.config.private_key).toString('base64url')}`;
+    return `${header}.${claims}.${signer.sign(privateKey).toString('base64url')}`;
   }
 }
 

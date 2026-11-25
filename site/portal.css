@@ -84,6 +84,18 @@ button.danger { background: transparent; color: var(--accent); border: 1px solid
 button.link { background: none; color: var(--lake); padding: 0.25rem 0; min-height: 0; font-weight: 600; text-decoration: underline; }
 button[disabled] { opacity: 0.6; cursor: wait; }
 .links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem; margin-top: 1rem; }
+/* Google's sign-in button: white with the G mark, per Google's branding guidance. */
+button.google { display: flex; align-items: center; justify-content: center; gap: 0.6rem; width: 100%; background: #fff; color: #1f1f1f; border: 1px solid #747775; font-weight: 600; }
+button.google:hover { background: #f2f2f2; }
+@media (prefers-color-scheme: dark) { button.google { background: #131314; color: #e3e3e3; border-color: #8e918f; } button.google:hover { background: #1f1f20; } }
+.prose { max-width: 46rem; margin: 0 auto; line-height: 1.6; }
+.prose h2 { color: var(--lake-deep); font-size: 1.3rem; margin: 1.6rem 0 0.4rem; }
+.prose ul { padding-left: 1.2rem; }
+.prose li { margin: 0.45rem 0; }
+button.facebook { display: flex; align-items: center; justify-content: center; gap: 0.6rem; width: 100%; margin-top: 0.6rem; background: #1877f2; color: #fff; border: 1px solid #1877f2; font-weight: 600; }
+button.facebook:hover { background: #166fe5; }
+.or { display: flex; align-items: center; gap: 0.75rem; margin: 1.1rem 0 0.4rem; color: var(--muted, #667); font-size: 0.9rem; }
+.or::before, .or::after { content: ''; flex: 1; border-top: 1px solid var(--line); }
 .message { border-radius: 0.5rem; padding: 0.7rem 0.9rem; margin: 0 0 1rem; }
 .message.error { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--ink); border-left: 4px solid var(--accent); }
 .message.info { background: var(--tint); border-left: 4px solid var(--lake); }
@@ -145,4 +157,6 @@ td button.link { display: block; text-align: left; font-size: inherit; }
 footer { background: var(--lake-deep); color: #cfe0e9; }
 .footer-inner { max-width: 1100px; margin: 0 auto; padding: 2rem 1.25rem 2.4rem; text-align: center; }
 .footer-inner .name { font-family: "Bitter", Georgia, serif; font-weight: 700; color: #fff; font-size: 1.15rem; margin: 0; }
+.footer-inner p { margin: 0.35rem 0 0; font-size: 0.97rem; }
+.footer-inner a { color: #fff; }
 .footer-sun { width: 54px; height: 4px; border-radius: 2px; background: var(--sun); margin: 0 auto 1rem; }
