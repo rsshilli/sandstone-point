@@ -4,6 +4,11 @@ import { api, goToLogin, isSignedIn, signOut } from './auth.js';
 import { showLotMap } from './lot-map.js';
 
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+/**
+ * Whether owners see what they owe (the "You owe" box, the Balance column, charges and payments).
+ * Off until the board settles who owes what; admins still see balances on the Admin tab.
+ */
+const SHOW_BALANCES = false;
 /** Every lot, for the admin table (replaced after each approval). */
 let adminLots = [];
 let filterWired = false;
@@ -95,8 +100,19 @@ function showMember(me) {
   });
   fillRows(
     'my-lots',
-    me.lots.map((lot) => [lot.lot, lot.status || '—', lot.owners.join(', ') || '—', lot.taxNames.join('; ') || '—', num(money.format(lot.annualDues)), num(money.format(lot.balance))]),
+    me.lots.map((lot) => {
+      const row = [lot.lot, lot.status || '—', lot.owners.join(', ') || '—', lot.taxNames.join('; ') || '—', num(money.format(lot.annualDues))];
+      if (SHOW_BALANCES) {
+        row.push(num(money.format(lot.balance)));
+      }
+      return row;
+    }),
   );
+  if (SHOW_BALANCES) {
+    document.querySelectorAll('#member [data-balance]').forEach((part) => {
+      part.hidden = false;
+    });
+  }
   fillRows(
     'ledger',
     me.ledger.map((entry) => [
@@ -493,7 +509,7 @@ function showVisitor(me) {
   if (me.request?.status === 'Pending') {
     status.append(
       el('h2', { style: 'margin-top:0' }, 'Your request is with the board'),
-      el('p', {}, `You asked on ${me.request.submitted}. Once a board member checks the county records, this page will show your lots, balance and gate code.`),
+      el('p', {}, `You asked on ${me.request.submitted}. Once a board member checks the county records, this page will show your lots and gate code.`),
     );
   } else {
     if (me.request?.status === 'Rejected') {

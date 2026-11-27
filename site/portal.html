@@ -57,7 +57,7 @@
       <div id="member" hidden>
         <div class="stats">
           <div class="stat"><div class="label">Your gate code</div><div class="value" id="gate-code"></div></div>
-          <div class="stat"><div class="label">You owe</div><div class="value" id="total-owed"></div></div>
+          <div class="stat" data-balance hidden><div class="label">You owe</div><div class="value" id="total-owed"></div></div>
           <div class="stat"><div class="label">Your lots</div><div class="value" id="lot-count"></div></div>
         </div>
 
@@ -67,18 +67,21 @@
         <h2>Your lots</h2>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Lot</th><th>Status</th><th>Owners</th><th>Name on tax record</th><th class="num">Yearly dues</th><th class="num">Balance</th></tr></thead>
+            <thead><tr><th>Lot</th><th>Status</th><th>Owners</th><th>Name on tax record</th><th class="num">Yearly dues</th><th class="num" data-balance hidden>Balance</th></tr></thead>
             <tbody id="my-lots"></tbody>
           </table>
         </div>
 
-        <h2>Charges and payments</h2>
-        <p class="muted" id="ledger-empty" hidden>Nothing recorded yet.</p>
-        <div class="table-wrap" id="ledger-wrap">
-          <table>
-            <thead><tr><th>Date</th><th>Lot</th><th>What</th><th class="num">Charge</th><th class="num">Paid</th><th>How</th></tr></thead>
-            <tbody id="ledger"></tbody>
-          </table>
+        <!-- Balances are hidden from owners until the board settles who owes what (SHOW_BALANCES in js/portal.js) -->
+        <div data-balance hidden>
+          <h2>Charges and payments</h2>
+          <p class="muted" id="ledger-empty" hidden>Nothing recorded yet.</p>
+          <div class="table-wrap" id="ledger-wrap">
+            <table>
+              <thead><tr><th>Date</th><th>Lot</th><th>What</th><th class="num">Charge</th><th class="num">Paid</th><th>How</th></tr></thead>
+              <tbody id="ledger"></tbody>
+            </table>
+          </div>
         </div>
         <p class="muted" style="margin-top:1rem">Something look wrong? <a data-board-email data-subject="My lot records">Tell a board member</a> and they&rsquo;ll fix the records.</p>
 
